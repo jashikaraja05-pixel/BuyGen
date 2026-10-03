@@ -80,6 +80,15 @@ class DatabaseStore {
 
     const runtimeAdmin: StoredUser = {
       id: 'admin-runtime',
+      name: 'Gayathiri Sathyamoorthy',
+      email: 'gayathirisathyamoorthy2006@gmail.com',
+      role: 'admin',
+      createdAt: '2026-09-01T00:00:00.000Z',
+      passwordHash: adminPassHash,
+    };
+
+    const repoAdmin: StoredUser = {
+      id: 'admin-repo',
       name: 'Jashika Raja',
       email: 'jashikaraja05@gmail.com',
       role: 'admin',
@@ -99,6 +108,7 @@ class DatabaseStore {
     this.users.set(defaultAdmin.email.toLowerCase(), defaultAdmin);
     this.users.set(ghpAdmin.email.toLowerCase(), ghpAdmin);
     this.users.set(runtimeAdmin.email.toLowerCase(), runtimeAdmin);
+    this.users.set(repoAdmin.email.toLowerCase(), repoAdmin);
     this.users.set(defaultCustomer.email.toLowerCase(), defaultCustomer);
 
     // Seed realistic completed & in-transit orders for rich initial admin dashboard stats
@@ -255,7 +265,12 @@ class DatabaseStore {
 
     const id = 'user-g-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const passwordHash = bcrypt.hashSync('GoogleOAuthAuthenticatedUser@123', 10);
-    const role: 'customer' | 'admin' = normalizedEmail.includes('admin') ? 'admin' : 'customer';
+    const role: 'customer' | 'admin' = (
+      normalizedEmail.includes('admin') || 
+      normalizedEmail === 'gayathirisathyamoorthy2006@gmail.com' ||
+      normalizedEmail === 'jashikaraja05@gmail.com' ||
+      normalizedEmail === 'jashikahack@gmail.com'
+    ) ? 'admin' : 'customer';
     const newUser: StoredUser = {
       id,
       name: name.trim() || normalizedEmail.split('@')[0],

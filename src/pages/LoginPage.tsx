@@ -75,8 +75,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
     try {
       setGoogleLoading(true);
       setError(null);
-      const chosenEmail = activeTab === 'admin' ? 'jashikaraja05@gmail.com' : 'customer@buygen.com';
-      const chosenName = activeTab === 'admin' ? 'Jashika Raja (Admin)' : 'Customer User';
+      const chosenEmail = activeTab === 'admin' ? 'gayathirisathyamoorthy2006@gmail.com' : 'customer@buygen.com';
+      const chosenName = activeTab === 'admin' ? 'Gayathiri Sathyamoorthy (Admin)' : 'Customer User';
       await loginWithGoogle(chosenEmail, chosenName);
       if (activeTab === 'admin') {
         navigate('/admin');

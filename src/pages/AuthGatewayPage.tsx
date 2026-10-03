@@ -90,8 +90,8 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
     try {
       setGoogleLoading(true);
       setError(null);
-      const chosenEmail = portal === 'admin' ? 'jashikaraja05@gmail.com' : 'customer@buygen.com';
-      const chosenName = portal === 'admin' ? 'Jashika Raja (Admin)' : 'Customer Google User';
+      const chosenEmail = portal === 'admin' ? 'gayathirisathyamoorthy2006@gmail.com' : 'customer@buygen.com';
+      const chosenName = portal === 'admin' ? 'Gayathiri Sathyamoorthy (Admin)' : 'Customer Google User';
       
       await loginWithGoogle(chosenEmail, chosenName);
       
