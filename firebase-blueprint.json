@@ -96,6 +96,7 @@
         "total": { "type": "number" },
         "paymentMethod": { "type": "string", "enum": ["UPI Simulation", "Card Simulation", "Cash on Delivery Simulation"] },
         "status": { "type": "string", "enum": ["Pending", "Confirmed", "Processing", "Shipped", "Delivered"] },
+        "shippingInfo": { "type": "object" },
         "createdAt": { "type": "string" },
         "updatedAt": { "type": "string" }
       },

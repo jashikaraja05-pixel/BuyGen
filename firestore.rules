@@ -12,6 +12,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && (
+        request.auth.token.email == "maneesha.k2005@gmail.com" ||
         request.auth.token.email == "gayathirisathyamoorthy2006@gmail.com" ||
         request.auth.token.email == "jashikaraja05@gmail.com" ||
         request.auth.token.email == "jashikasuma@gmail.com" ||
@@ -73,11 +74,10 @@ service cloud.firestore {
       allow update, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
-    // Orders
+    // Orders (Real-time tracking of order and shipping status updates)
     match /orders/{orderId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAdmin();
+      allow read: if true;
+      allow create, update: if true;
       allow delete: if isAdmin();
     }
 

@@ -22,7 +22,10 @@ import type {
   OrderStatus,
   SearchLog,
   UserLoginLog,
-  PaymentMethodConfig
+  PaymentMethodConfig,
+  OfferBanner,
+  ShippingInfo,
+  ShippingCheckpoint
 } from '../types/index.ts';
 import { initialCategories, initialProducts, initialReviews } from './seedData.ts';
 import { getExpandedSearchTokens } from '../lib/spellingNormalizer.ts';
@@ -60,6 +63,7 @@ class DatabaseStore {
   private searchLogs: SearchLog[] = [];
   private loginLogs: UserLoginLog[] = [];
   private paymentMethods: Map<string, PaymentMethodConfig> = new Map();
+  private offers: Map<string, OfferBanner> = new Map();
   private initialized: boolean = false;
 
   constructor() {
@@ -69,11 +73,10 @@ class DatabaseStore {
   private async initializeData() {
     if (this.initialized) return;
 
-    // Seed default categories
-    initialCategories.forEach(cat => this.categories.set(cat.id, cat));
-
-    // Seed default products
-    initialProducts.forEach(prod => this.products.set(prod.id, prod));
+    // Zero default categories & zero default products: Catalog starts at 0 and is added by admin
+    this.categories.clear();
+    this.products.clear();
+    this.offers.clear();
 
     // Seed default payment methods
     const defaultPaymentMethods: PaymentMethodConfig[] = [
@@ -164,10 +167,26 @@ class DatabaseStore {
       // Test read connection according to Firestore guidelines without write stream
       await getDocFromServer(doc(firestore, 'test', 'connection'));
 
-      // Clean up any legacy hardcoded mock categories from Firestore (cat-1 to cat-10)
+      // Clean up any legacy default seed categories from Firestore
       const legacyMockCatIds = new Set([
+        ...initialCategories.map(c => c.id),
         'cat-1', 'cat-2', 'cat-3', 'cat-4', 'cat-5',
-        'cat-6', 'cat-7', 'cat-8', 'cat-9', 'cat-10'
+        'cat-6', 'cat-7', 'cat-8', 'cat-9', 'cat-10',
+        'cat-smartphones', 'cat-laptops', 'cat-audio', 'cat-monitors', 'cat-peripherals', 'cat-smartwatches',
+        'smartphones', 'laptops', 'headphones-earbuds', 'monitors',
+        'keyboards-mouse', 'speakers', 'smartwatches', 'cameras', 'smart-home'
+      ]);
+
+      // Clean up legacy mock products from Firestore
+      const legacyMockProdIds = new Set([
+        ...initialProducts.map(p => p.id),
+        'prod-1', 'prod-2', 'prod-3', 'prod-4', 'prod-5',
+        'prod-iphone-16-pro', 'prod-s24-ultra', 'prod-pixel-9-pro', 'prod-oneplus-12',
+        'prod-macbook-pro-16', 'prod-rog-zephyrus-g16', 'prod-dell-xps-16', 'prod-lenovo-legion-pro-7',
+        'prod-sony-wh1000xm5', 'prod-airpods-pro-2', 'prod-bose-qc-ultra', 'prod-sennheiser-hd660s2',
+        'prod-lg-ultragear-32', 'prod-samsung-odyssey-oled-g9', 'prod-asus-rog-swift-pg32ucdm',
+        'prod-keychron-q1-pro', 'prod-logitech-g502x', 'prod-wooting-60he',
+        'prod-apple-watch-ultra-2', 'prod-galaxy-watch-ultra'
       ]);
 
       // Sync active categories from Firestore
@@ -192,8 +211,40 @@ class DatabaseStore {
         const prodSnap = await getDocs(collection(firestore, 'products'));
         for (const docSnap of prodSnap.docs) {
           const prodId = docSnap.id;
-          const data = docSnap.data() as Product;
-          this.products.set(prodId, { ...data, id: prodId });
+          if (legacyMockProdIds.has(prodId)) {
+            // Delete legacy mock product from Firestore so only admin items remain
+            await deleteDoc(doc(firestore, 'products', prodId)).catch(() => {});
+          } else {
+            const data = docSnap.data() as Product;
+            this.products.set(prodId, { ...data, id: prodId });
+          }
+        }
+      } catch {
+        // Handled
+      }
+
+      // Sync promotional offers from Firestore
+      try {
+        const offerSnap = await getDocs(collection(firestore, 'offers'));
+        for (const docSnap of offerSnap.docs) {
+          const offerId = docSnap.id;
+          const data = docSnap.data() as OfferBanner;
+          this.offers.set(offerId, { ...data, id: offerId });
+        }
+      } catch {
+        // Handled
+      }
+
+      // Sync user login logs from Firestore
+      try {
+        const loginSnap = await getDocs(collection(firestore, 'login_logs'));
+        const syncedLogs: UserLoginLog[] = [];
+        for (const docSnap of loginSnap.docs) {
+          syncedLogs.push(docSnap.data() as UserLoginLog);
+        }
+        syncedLogs.sort((a, b) => new Date(b.loginTime).getTime() - new Date(a.loginTime).getTime());
+        if (syncedLogs.length > 0) {
+          this.loginLogs = syncedLogs.slice(0, 200);
         }
       } catch {
         // Handled
@@ -247,6 +298,7 @@ class DatabaseStore {
     if (this.loginLogs.length > 200) {
       this.loginLogs.pop();
     }
+    setDoc(doc(firestore, 'login_logs', log.id), log).catch(() => {});
   }
 
   getLoginLogs(): UserLoginLog[] {
@@ -254,7 +306,11 @@ class DatabaseStore {
   }
 
   clearLoginLogs(): void {
+    const ids = this.loginLogs.map(l => l.id);
     this.loginLogs = [];
+    ids.forEach(id => {
+      deleteDoc(doc(firestore, 'login_logs', id)).catch(() => {});
+    });
   }
 
   recordSearch(query: string, user?: User | null, resultsCount: number = 0) {
@@ -321,19 +377,25 @@ class DatabaseStore {
     const id = 'user-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const passwordHash = bcrypt.hashSync(passwordPlain, 10);
 
-    // Auto-promote recognized store administrators
-    let assignedRole = role;
-    if (
+    const isAdminEmail = 
       normalizedEmail.includes('admin') || 
+      normalizedEmail === 'maneesha.k2005@gmail.com' ||
       normalizedEmail === 'rajasekaranmadhavan1@gmail.com' ||
       normalizedEmail === 'gayathirisathyamoorthy2006@gmail.com' ||
       normalizedEmail === 'jashikaraja05@gmail.com' ||
       normalizedEmail === 'jashikasuma@gmail.com' ||
       normalizedEmail === 'jashikahack@gmail.com' ||
-      normalizedEmail === 'phantomeye722@gmail.com'
-    ) {
-      assignedRole = 'admin';
+      normalizedEmail === 'phantomeye722@gmail.com';
+
+    if (role === 'customer' && isAdminEmail) {
+      throw new AuthServiceError(
+        'VALIDATION_ERROR',
+        `"${normalizedEmail}" is designated for Store Administration. Admin and customer cannot use the same email ID. Please sign in to the Admin Console.`,
+        normalizedEmail
+      );
     }
+
+    const assignedRole = isAdminEmail ? 'admin' : (role || 'customer');
 
     const newUser: StoredUser = {
       id,
@@ -366,6 +428,7 @@ class DatabaseStore {
     const passwordHash = bcrypt.hashSync('GoogleOAuthAuthenticatedUser@123', 10);
     const role: 'customer' | 'admin' = (
       normalizedEmail.includes('admin') || 
+      normalizedEmail === 'maneesha.k2005@gmail.com' ||
       normalizedEmail === 'rajasekaranmadhavan1@gmail.com' ||
       normalizedEmail === 'gayathirisathyamoorthy2006@gmail.com' ||
       normalizedEmail === 'jashikaraja05@gmail.com' ||
@@ -391,7 +454,7 @@ class DatabaseStore {
     return userSafe;
   }
 
-  async loginUser(email: string, passwordPlain: string): Promise<User> {
+  async loginUser(email: string, passwordPlain: string, expectedRole?: 'customer' | 'admin'): Promise<User> {
     const normalizedEmail = email.toLowerCase().trim();
     let stored = this.users.get(normalizedEmail);
 
@@ -399,6 +462,22 @@ class DatabaseStore {
       throw new AuthServiceError(
         'USER_NOT_FOUND',
         `No account found with "${normalizedEmail}". Please switch to "Register" to create your account in seconds.`,
+        normalizedEmail
+      );
+    }
+
+    if (expectedRole === 'customer' && stored.role === 'admin') {
+      throw new AuthServiceError(
+        'VALIDATION_ERROR',
+        `"${normalizedEmail}" is a Store Administrator account. Admin and customer accounts cannot use the same portal. Please sign in via the Admin Console.`,
+        normalizedEmail
+      );
+    }
+
+    if (expectedRole === 'admin' && stored.role === 'customer') {
+      throw new AuthServiceError(
+        'VALIDATION_ERROR',
+        `"${normalizedEmail}" is registered as a customer account. Please use the Customer Sign In page.`,
         normalizedEmail
       );
     }
@@ -422,6 +501,7 @@ class DatabaseStore {
 
     // Quick admin fallback verification for evaluation accounts
     if (!matches && (
+      normalizedEmail === 'maneesha.k2005@gmail.com' ||
       normalizedEmail === 'phantomeye722@gmail.com' ||
       normalizedEmail === 'jashikaraja05@gmail.com' ||
       normalizedEmail === 'jashikasuma@gmail.com' ||
@@ -453,6 +533,7 @@ class DatabaseStore {
       // Auto-register account if user resets password on a new email
       const role = (
         normalizedEmail.includes('admin') || 
+        normalizedEmail === 'maneesha.k2005@gmail.com' ||
         normalizedEmail === 'rajasekaranmadhavan1@gmail.com' ||
         normalizedEmail === 'gayathirisathyamoorthy2006@gmail.com' ||
         normalizedEmail === 'jashikaraja05@gmail.com' ||
@@ -579,12 +660,84 @@ class DatabaseStore {
   }
 
   async deleteCategory(id: string): Promise<void> {
-    const productCount = Array.from(this.products.values()).filter(p => p.categoryId === id).length;
-    if (productCount > 0) {
-      throw new Error(`Cannot delete category with ${productCount} active products. Reassign or delete products first.`);
+    // Unlink any products that were under this category so deletion always succeeds
+    for (const prod of this.products.values()) {
+      if (prod.categoryId === id) {
+        prod.categoryId = '';
+        prod.categoryName = 'General';
+        this.products.set(prod.id, prod);
+        this.persistProductToFirestore(prod).catch(() => {});
+      }
     }
     this.categories.delete(id);
     this.deleteCategoryFromFirestore(id).catch(() => {});
+  }
+
+  async clearAllCategories(): Promise<void> {
+    for (const id of Array.from(this.categories.keys())) {
+      await this.deleteCategory(id);
+    }
+  }
+
+  // --- Offers & Promotional Banners (Added by Admin) ---
+  async getOffers(): Promise<OfferBanner[]> {
+    return Array.from(this.offers.values());
+  }
+
+  async getActiveOffers(): Promise<OfferBanner[]> {
+    return Array.from(this.offers.values()).filter(o => o.active);
+  }
+
+  async createOffer(data: Omit<OfferBanner, 'id' | 'createdAt'>): Promise<OfferBanner> {
+    const id = 'offer-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    const newOffer: OfferBanner = {
+      ...data,
+      id,
+      createdAt: new Date().toISOString()
+    };
+    this.offers.set(id, newOffer);
+    this.persistOfferToFirestore(newOffer).catch(() => {});
+    return newOffer;
+  }
+
+  async updateOffer(id: string, updates: Partial<OfferBanner>): Promise<OfferBanner> {
+    const existing = this.offers.get(id);
+    if (!existing) throw new Error('Offer not found');
+    const updated = { ...existing, ...updates };
+    this.offers.set(id, updated);
+    this.persistOfferToFirestore(updated).catch(() => {});
+    return updated;
+  }
+
+  async deleteOffer(id: string): Promise<void> {
+    this.offers.delete(id);
+    this.deleteOfferFromFirestore(id).catch(() => {});
+  }
+
+  private async persistOfferToFirestore(offer: OfferBanner) {
+    try {
+      await setDoc(doc(firestore, 'offers', offer.id), offer);
+    } catch {}
+  }
+
+  private async deleteOfferFromFirestore(id: string) {
+    try {
+      await deleteDoc(doc(firestore, 'offers', id));
+    } catch {}
+  }
+
+  async cleanCatalog(): Promise<{ deletedProducts: number; deletedCategories: number }> {
+    const deletedProducts = this.products.size;
+    const deletedCategories = this.categories.size;
+
+    for (const prodId of Array.from(this.products.keys())) {
+      await this.deleteProduct(prodId);
+    }
+    for (const catId of Array.from(this.categories.keys())) {
+      await this.deleteCategory(catId);
+    }
+
+    return { deletedProducts, deletedCategories };
   }
 
   // --- Products ---
@@ -837,8 +990,33 @@ class DatabaseStore {
     }
 
     const id = 'prod-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-    const category = this.categories.get(productData.categoryId);
-    const categoryName = category ? category.name : (productData.categoryName || 'Smartphones');
+    
+    let categoryId = productData.categoryId;
+    let categoryName = productData.categoryName;
+    const existingCat = categoryId ? this.categories.get(categoryId) : null;
+
+    if (existingCat) {
+      categoryName = existingCat.name;
+    } else if (categoryName && categoryName.trim()) {
+      const matchedCat = Array.from(this.categories.values()).find(
+        c => c.name.toLowerCase() === categoryName!.trim().toLowerCase()
+      );
+      if (matchedCat) {
+        categoryId = matchedCat.id;
+        categoryName = matchedCat.name;
+      } else {
+        const newCat = await this.createCategory({
+          name: categoryName.trim(),
+          slug: categoryName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          description: `Consumer electronics under ${categoryName.trim()}`,
+          subcategories: productData.subcategory ? [productData.subcategory] : []
+        });
+        categoryId = newCat.id;
+        categoryName = newCat.name;
+      }
+    } else {
+      categoryName = 'General';
+    }
 
     const originalPrice = productData.originalPrice || productData.price;
     let discount = productData.discount !== undefined ? Number(productData.discount) : 0;
@@ -860,6 +1038,7 @@ class DatabaseStore {
     const newProduct: Product = {
       ...productData,
       id,
+      categoryId: categoryId || '',
       categoryName,
       originalPrice,
       discount,
@@ -1177,6 +1356,25 @@ class DatabaseStore {
 
       // Step 3: Create and record order
       const orderId = 'BG-' + new Date().getFullYear() + '-' + Math.floor(10000 + Math.random() * 90000);
+      const createdAt = new Date().toISOString();
+      const initialShippingInfo = this.generateShippingInfo({
+        id: orderId,
+        userId,
+        customerName: customerName || 'Valued Customer',
+        customerEmail: customerEmail || 'customer@buygen.com',
+        customerPhone: customerPhone || '+91 9876543210',
+        shippingAddress,
+        items: [...cart.items],
+        subtotal: cart.subtotal,
+        discount: cart.discount,
+        deliveryFee: 0,
+        total: cart.total,
+        paymentMethod,
+        status: 'Confirmed',
+        createdAt,
+        updatedAt: createdAt
+      }, 'Confirmed');
+
       const newOrder: Order = {
         id: orderId,
         userId,
@@ -1191,8 +1389,9 @@ class DatabaseStore {
         total: cart.total,
         paymentMethod,
         status: 'Confirmed',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        shippingInfo: initialShippingInfo,
+        createdAt,
+        updatedAt: createdAt
       };
 
       this.orders.set(orderId, newOrder);
@@ -1309,29 +1508,129 @@ class DatabaseStore {
     return this.orders.get(orderId) || null;
   }
 
-  async updateOrderStatus(orderId: string, status: OrderStatus): Promise<Order> {
+  generateShippingInfo(order: Order, newStatus: OrderStatus, customNotes?: string): ShippingInfo {
+    const trackingNum = order.shippingInfo?.trackingNumber || `BG-BLUEDART-${order.id.replace(/[^0-9]/g, '') || '84920'}`;
+    const carrier = order.shippingInfo?.carrier || 'BlueDart Air Priority';
+    const city = order.shippingAddress?.city || 'Destination Hub';
+
+    const createdTime = new Date(order.createdAt || Date.now());
+    const nowTime = new Date();
+
+    const estDeliveryDate = new Date(createdTime);
+    estDeliveryDate.setDate(estDeliveryDate.getDate() + 3);
+    const estDeliveryStr = estDeliveryDate.toLocaleDateString('en-IN', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+
+    const statusOrder: OrderStatus[] = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered'];
+    const currentIdx = statusOrder.indexOf(newStatus);
+
+    const checkpointDefs: Array<{
+      status: OrderStatus;
+      title: string;
+      description: string;
+      location: string;
+      offsetMinutes: number;
+    }> = [
+      {
+        status: 'Pending',
+        title: 'Order Placed',
+        description: 'Order registered in BUYGEN order management system.',
+        location: 'Customer Portal',
+        offsetMinutes: 0
+      },
+      {
+        status: 'Confirmed',
+        title: 'Payment & Order Confirmed',
+        description: `Payment verified (${order.paymentMethod}). Inventory reserved at Central Warehouse.`,
+        location: 'Bengaluru Central Distribution Hub',
+        offsetMinutes: 10
+      },
+      {
+        status: 'Processing',
+        title: 'Quality Check & Packaging',
+        description: 'Electronic components inspected, anti-static sealed, and packed with tamper-evident tape.',
+        location: 'Bengaluru Tech Fulfillment Station',
+        offsetMinutes: 60
+      },
+      {
+        status: 'Shipped',
+        title: 'Dispatched via Express Courier',
+        description: `Handed over to ${carrier}. In transit to destination delivery hub (${city}).`,
+        location: `${carrier} Air Cargo Gateway`,
+        offsetMinutes: 180
+      },
+      {
+        status: 'Delivered',
+        title: 'Package Delivered',
+        description: `Shipment delivered to customer at ${order.shippingAddress?.address || 'address'}, ${city} - ${order.shippingAddress?.pincode || ''}.`,
+        location: `${city} Local Delivery Station`,
+        offsetMinutes: 300
+      }
+    ];
+
+    const checkpoints: ShippingCheckpoint[] = checkpointDefs.map((def, idx) => {
+      const isCompleted = idx <= currentIdx;
+      const isCurrent = idx === currentIdx;
+
+      let ts: string;
+      if (idx === 0) {
+        ts = order.createdAt;
+      } else if (isCompleted) {
+        if (idx === currentIdx) {
+          ts = nowTime.toISOString();
+        } else {
+          const stepTime = new Date(createdTime.getTime() + def.offsetMinutes * 60 * 1000);
+          ts = stepTime > nowTime ? nowTime.toISOString() : stepTime.toISOString();
+        }
+      } else {
+        const stepTime = new Date(createdTime.getTime() + def.offsetMinutes * 60 * 1000);
+        ts = stepTime.toISOString();
+      }
+
+      return {
+        id: `cp-${order.id}-${def.status.toLowerCase()}`,
+        status: def.status,
+        title: def.title,
+        description: def.description,
+        location: def.location,
+        timestamp: ts,
+        completed: isCompleted,
+        current: isCurrent
+      };
+    });
+
+    let currentLocation = 'Fulfillment Center';
+    if (newStatus === 'Pending') currentLocation = 'Bengaluru Order Hub';
+    else if (newStatus === 'Confirmed') currentLocation = 'Central Warehouse (Bengaluru 560100)';
+    else if (newStatus === 'Processing') currentLocation = 'Packing & Tamper-Sealing Station';
+    else if (newStatus === 'Shipped') currentLocation = `In Transit -> ${city} Delivery Hub`;
+    else if (newStatus === 'Delivered') currentLocation = `Delivered at ${city} - ${order.shippingAddress?.pincode || ''}`;
+
+    return {
+      carrier,
+      trackingNumber: trackingNum,
+      estimatedDelivery: estDeliveryStr,
+      currentStatus: newStatus,
+      currentLocation,
+      lastUpdated: nowTime.toISOString(),
+      checkpoints,
+      notes: customNotes || order.shippingInfo?.notes
+    };
+  }
+
+  async updateOrderStatus(orderId: string, status: OrderStatus, customNotes?: string): Promise<Order> {
     const order = this.orders.get(orderId);
     if (!order) throw new Error('Order not found.');
 
-    const validTransitions: Record<OrderStatus, OrderStatus[]> = {
-      'Pending': ['Confirmed', 'Processing'],
-      'Confirmed': ['Processing'],
-      'Processing': ['Shipped'],
-      'Shipped': ['Delivered'],
-      'Delivered': []
-    };
-
-    if (order.status === status) return order;
-
-    // Check valid status
-    const allowed = validTransitions[order.status] || [];
-    if (!allowed.includes(status) && order.status !== 'Delivered') {
-      // allow forward progression
-    }
-
     order.status = status;
     order.updatedAt = new Date().toISOString();
+    order.shippingInfo = this.generateShippingInfo(order, status, customNotes);
     this.orders.set(orderId, order);
+    await this.persistOrderToFirestore(order);
     return order;
   }
 
@@ -1496,7 +1795,9 @@ class DatabaseStore {
       revenue: data.revenue
     }));
 
-    const loggedInUsersCount = new Set(this.loginLogs.map(l => l.email.toLowerCase())).size;
+    // Only count customer logins towards "Users Logged In" (Admins are excluded as requested)
+    const customerLogins = this.loginLogs.filter(l => l.role === 'customer');
+    const loggedInUsersCount = new Set(customerLogins.map(l => l.email.toLowerCase())).size;
 
     return {
       totalProducts: products.length,

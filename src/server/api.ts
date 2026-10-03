@@ -317,6 +317,15 @@ apiRouter.put('/categories/:id', requireAdmin, async (req: AuthenticatedRequest,
   }
 });
 
+apiRouter.delete('/categories/all/clear', requireAdmin, async (_req: AuthenticatedRequest, res) => {
+  try {
+    await dbStore.clearAllCategories();
+    res.json({ success: true, message: 'All categories cleared successfully' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to clear categories' });
+  }
+});
+
 apiRouter.delete('/categories/:id', requireAdmin, async (req: AuthenticatedRequest, res) => {
   try {
     await dbStore.deleteCategory(req.params.id);
@@ -409,10 +418,10 @@ apiRouter.get('/orders', requireAuth, async (req: AuthenticatedRequest, res) => 
   try {
     if (req.user!.role === 'admin') {
       const allOrders = await dbStore.getAllOrders();
-      return res.json({ orders: allOrders });
+      return res.json({ orders: allOrders.orders, total: allOrders.total });
     }
     const userOrders = await dbStore.getOrdersByUser(req.user!.id);
-    res.json({ orders: userOrders });
+    res.json({ orders: userOrders, total: userOrders.length });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to fetch orders' });
   }
@@ -442,9 +451,8 @@ apiRouter.post('/orders', requireAuth, async (req: AuthenticatedRequest, res) =>
       return res.status(400).json({ error: 'All shipping address fields are required.' });
     }
 
-    const validMethods: PaymentMethod[] = ['UPI Simulation', 'Card Simulation', 'Cash on Delivery Simulation'];
-    if (!paymentMethod || !validMethods.includes(paymentMethod)) {
-      return res.status(400).json({ error: 'Please choose a valid simulated payment method.' });
+    if (!paymentMethod || typeof paymentMethod !== 'string' || !paymentMethod.trim()) {
+      return res.status(400).json({ error: 'Please choose a payment method (e.g. UPI QR, Cash on Delivery, Card).' });
     }
 
     const shippingAddress = { fullName, phone, address, city, state, pincode };
@@ -617,6 +625,72 @@ apiRouter.delete('/admin/payment-methods/:id', requireAdmin, async (req: Authent
     res.json({ success: true, message: 'Payment method removed successfully.' });
   } catch (err: any) {
     res.status(400).json({ error: err.message || 'Failed to delete payment method' });
+  }
+});
+
+// ================= PROMOTIONAL OFFERS & BANNERS (ADMIN ADDED) =================
+apiRouter.get('/offers', async (_req, res) => {
+  try {
+    const offers = await dbStore.getActiveOffers();
+    res.json({ offers });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to fetch active offers' });
+  }
+});
+
+apiRouter.get('/admin/offers', requireAdmin, async (_req: AuthenticatedRequest, res) => {
+  try {
+    const offers = await dbStore.getOffers();
+    res.json({ offers });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to fetch offers' });
+  }
+});
+
+apiRouter.post('/admin/offers', requireAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { title, subtitle, badge, discountPercentage, promoCode, imageUrl, bgGradient, active } = req.body;
+    if (!title) return res.status(400).json({ error: 'Offer title is required.' });
+    const offer = await dbStore.createOffer({
+      title,
+      subtitle: subtitle || '',
+      badge: badge || 'Special Offer',
+      discountPercentage: discountPercentage ? Number(discountPercentage) : undefined,
+      promoCode: promoCode || '',
+      imageUrl: imageUrl || '',
+      bgGradient: bgGradient || 'from-indigo-900/90 via-purple-900/80 to-slate-950',
+      active: active !== undefined ? Boolean(active) : true
+    });
+    res.status(201).json({ offer, message: 'Promotional offer added successfully!' });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || 'Failed to create offer' });
+  }
+});
+
+apiRouter.put('/admin/offers/:id', requireAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    const updated = await dbStore.updateOffer(req.params.id, req.body);
+    res.json({ offer: updated, message: 'Offer banner updated successfully!' });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || 'Failed to update offer' });
+  }
+});
+
+apiRouter.delete('/admin/offers/:id', requireAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    await dbStore.deleteOffer(req.params.id);
+    res.json({ success: true, message: 'Offer removed successfully.' });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || 'Failed to delete offer' });
+  }
+});
+
+apiRouter.post('/admin/clean-catalog', requireAdmin, async (_req: AuthenticatedRequest, res) => {
+  try {
+    const result = await dbStore.cleanCatalog();
+    res.json({ success: true, message: 'Store catalog cleaned completely. Zero mock items remain.', ...result });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to clean catalog' });
   }
 });
 

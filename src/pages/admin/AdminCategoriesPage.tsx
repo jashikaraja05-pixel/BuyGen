@@ -108,6 +108,19 @@ export const AdminCategoriesPage: React.FC = () => {
     }
   };
 
+  const handleClearAll = async () => {
+    if (!window.confirm('Are you sure you want to delete all categories? Active Categories will be reset to 0.')) {
+      return;
+    }
+    try {
+      setError(null);
+      await api.clearAllCategories();
+      await loadCategories();
+    } catch (err: any) {
+      setError(err.message || 'Failed to clear all categories');
+    }
+  };
+
   return (
     <div className="space-y-8 text-white">
       
@@ -117,17 +130,30 @@ export const AdminCategoriesPage: React.FC = () => {
             Category Management
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Configure electronics categories, navigation slugs, and subcategories.
+            Configure electronics categories, delete unwanted ones, and organize inventory.
           </p>
         </div>
 
-        <button
-          onClick={openCreateModal}
-          className="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:opacity-95 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-amber-500/20 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Category</span>
-        </button>
+        <div className="flex items-center gap-3">
+          {categories.length > 0 && (
+            <button
+              onClick={handleClearAll}
+              className="px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+              title="Delete all categories and reset active count to 0"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Reset to 0 Categories</span>
+            </button>
+          )}
+
+          <button
+            onClick={openCreateModal}
+            className="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:opacity-95 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-amber-500/20 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>New Category</span>
+          </button>
+        </div>
       </div>
 
       {error && (

@@ -6,397 +6,370 @@ import {
   Truck, 
   Cpu, 
   Zap, 
-  Flame, 
   Tag, 
-  ChevronRight,
+  Package,
+  Layers,
+  Info,
   SlidersHorizontal,
-  Star,
-  Package
+  Search,
+  CheckCircle2,
+  ChevronRight,
+  Flame,
+  Percent,
+  Plus
 } from 'lucide-react';
-import type { Product, Category } from '../types/index.ts';
+import type { Product, Category, OfferBanner } from '../types/index.ts';
 import { api } from '../services/api.ts';
 import { ProductCard } from '../components/ProductCard.tsx';
+import { AboutModal } from '../components/AboutModal.tsx';
+import { useAuth } from '../context/AuthContext.tsx';
 
 interface HomePageProps {
   navigate: (path: string) => void;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
+  const { user, isAdmin } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
-  const [trendingProducts, setTrendingProducts] = useState<Product[]>([]);
-  const [newArrivals, setNewArrivals] = useState<Product[]>([]);
-  const [dealProducts, setDealProducts] = useState<Product[]>([]);
+  const [offers, setOffers] = useState<OfferBanner[]>([]);
+  const [selectedCategorySlug, setSelectedCategorySlug] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [aboutModalOpen, setAboutModalOpen] = useState(false);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [catRes, prodRes, offerRes] = await Promise.all([
+        api.getCategories().catch(() => ({ categories: [] })),
+        api.getProducts().catch(() => ({ products: [] })),
+        api.getOffers().catch(() => ({ offers: [] }))
+      ]);
+
+      setCategories(catRes.categories || []);
+      setAllProducts(prodRes.products || []);
+      setOffers(offerRes.offers || []);
+    } catch (err) {
+      console.error('Failed to load homepage data', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadHomeData = async () => {
-      try {
-        setLoading(true);
-        const [catRes, prodRes] = await Promise.all([
-          api.getCategories(),
-          api.getProducts()
-        ]);
-
-        setCategories(catRes.categories || []);
-
-        const all = prodRes.products || [];
-        setAllProducts(all);
-        setFeaturedProducts(all.filter(p => p.featured));
-        setTrendingProducts(all.filter(p => p.trending));
-        setNewArrivals(all.filter(p => p.newArrival));
-        setDealProducts(all.filter(p => p.discount >= 10));
-      } catch (err) {
-        console.error('Failed to load homepage data', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadHomeData();
+    loadData();
   }, []);
 
+  // Filter products by selected category and search query
+  const displayedProducts = allProducts.filter(p => {
+    const matchesCategory = 
+      selectedCategorySlug === 'all' || 
+      p.categoryId === selectedCategorySlug || 
+      p.categoryName?.toLowerCase() === selectedCategorySlug.toLowerCase();
+
+    const matchesSearch = 
+      !searchQuery.trim() || 
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.categoryName.toLowerCase().includes(searchQuery.toLowerCase());
+
+    return matchesCategory && matchesSearch;
+  });
+
+  const activeOffer = offers.length > 0 ? offers[0] : null;
+
   return (
-    <div className="space-y-16 pb-20">
+    <div className="space-y-10 pb-20">
       
-      {/* 1. Hero Section */}
-      <section className="relative overflow-hidden bg-slate-950 text-white rounded-3xl mx-4 sm:mx-6 lg:mx-8 mt-4 sm:mt-6 border border-slate-800 shadow-2xl">
-        {/* Ambient Gradient Glows */}
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/30 rounded-full blur-[128px] pointer-events-none"></div>
-        <div className="absolute top-1/2 -right-40 w-96 h-96 bg-cyan-500/20 rounded-full blur-[128px] pointer-events-none"></div>
+      {/* 1. TOP OFFERS DISPLAY BANNER (Shown prominently when added by Admin) */}
+      {activeOffer ? (
+        <section className="mx-4 sm:mx-6 lg:mx-8 mt-4 sm:mt-6">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-950 via-purple-950 to-slate-950 border-2 border-amber-500/40 shadow-2xl p-6 sm:p-10 text-white">
+            <div className="absolute -right-20 -top-20 w-80 h-80 bg-amber-500/15 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="absolute -left-20 -bottom-20 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
 
-        <div className="relative max-w-7xl mx-auto px-6 sm:px-12 py-16 sm:py-24 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-          
-          <div className="lg:col-span-7 space-y-6">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/80 text-xs font-semibold text-cyan-300">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-              <span>Next-Gen Shopping, Smarter Choices</span>
-            </div>
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-3 max-w-2xl">
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 bg-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-lg shadow-md flex items-center gap-1.5">
+                    <Percent className="w-3.5 h-3.5" />
+                    <span>{activeOffer.badge || 'OFFERS'}</span>
+                  </span>
+                  {activeOffer.discountPercentage && (
+                    <span className="px-3 py-1 bg-rose-500/20 text-rose-300 border border-rose-500/40 text-xs font-bold rounded-lg">
+                      UP TO {activeOffer.discountPercentage}% OFF
+                    </span>
+                  )}
+                  {activeOffer.promoCode && (
+                    <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-mono font-bold rounded-lg">
+                      CODE: {activeOffer.promoCode}
+                    </span>
+                  )}
+                </div>
 
-            <h1 className="font-heading font-black text-4xl sm:text-5xl lg:text-6xl tracking-tight text-white leading-[1.1]">
-              Elevate Your Setup with <span className="bg-gradient-to-r from-indigo-400 via-cyan-300 to-indigo-300 bg-clip-text text-transparent">Pro Consumer Tech.</span>
-            </h1>
+                <h1 className="font-heading font-black text-3xl sm:text-4xl lg:text-5xl text-white tracking-tight leading-tight">
+                  {activeOffer.title}
+                </h1>
 
-            <p className="text-sm sm:text-base text-slate-300 max-w-xl leading-relaxed font-normal">
-              Explore authentic flagships, laptops, headphones, monitors, and smart tech with live warehouse stock tracking and genuine manufacturer warranty.
-            </p>
-
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <button
-                onClick={() => navigate('/products')}
-                className="px-6 py-3.5 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-slate-950 font-black text-sm rounded-xl shadow-lg shadow-cyan-500/25 transition flex items-center gap-2 cursor-pointer active:scale-95"
-              >
-                <span>Browse All Products</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-
-              <button
-                onClick={() => navigate('/categories/smartphones')}
-                className="px-5 py-3.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-bold text-sm rounded-xl transition flex items-center gap-2 cursor-pointer active:scale-95"
-              >
-                <span>📱 Smartphones</span>
-              </button>
-            </div>
-
-            {/* Micro assurance */}
-            <div className="pt-6 grid grid-cols-3 gap-4 border-t border-slate-800/80 text-xs text-slate-400">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>100% Genuine Warranty</span>
+                {activeOffer.subtitle && (
+                  <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-medium">
+                    {activeOffer.subtitle}
+                  </p>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                <Truck className="w-4 h-4 text-indigo-400" />
-                <span>Express Dispatch</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-cyan-400" />
-                <span>Instant & COD Payments</span>
+
+              <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end gap-3 shrink-0">
+                <button
+                  onClick={() => setSelectedCategorySlug('all')}
+                  className="px-6 py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-sm rounded-2xl shadow-xl shadow-amber-500/25 transition cursor-pointer flex items-center gap-2 active:scale-95"
+                >
+                  <span>Explore Offers</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => navigate('/admin')}
+                    className="text-xs text-amber-300/80 hover:text-amber-200 font-bold underline cursor-pointer"
+                  >
+                    Manage Offers in Admin Console
+                  </button>
+                )}
               </div>
             </div>
           </div>
-
-          {/* Hero Gadget Showcase Card */}
-          <div className="lg:col-span-5 relative">
-            {allProducts.length > 0 ? (
-              <div className="relative rounded-2xl bg-gradient-to-b from-slate-800/60 to-slate-900/60 border border-slate-700/80 p-6 backdrop-blur-xl shadow-2xl">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="px-2.5 py-1 text-[11px] font-bold uppercase rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                    {allProducts[0].badge || 'Featured Innovation'}
-                  </span>
-                  <div className="flex items-center gap-1 text-amber-400 text-xs font-bold">
-                    <Star className="w-3.5 h-3.5 fill-amber-400" />
-                    <span>{allProducts[0].rating} / 5.0</span>
-                  </div>
+        </section>
+      ) : (
+        /* Clean Header when no offer banner is active */
+        <section className="mx-4 sm:mx-6 lg:mx-8 mt-4 sm:mt-6">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-950 via-[#0d1230] to-slate-950 border border-slate-800 shadow-xl p-6 sm:p-8 text-white">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-xs font-bold text-cyan-300 mb-2">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>BUYGEN Official Consumer Electronics Marketplace</span>
                 </div>
-
-                <div className="rounded-xl overflow-hidden bg-slate-800/90 aspect-video mb-4 relative">
-                  <img
-                    src={allProducts[0].images[0] || 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=800&auto=format&fit=crop'}
-                    alt={allProducts[0].name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-
-                <h3 className="font-heading font-bold text-lg text-white truncate">
-                  {allProducts[0].name}
-                </h3>
-                <p className="text-xs text-slate-400 mt-1 line-clamp-2">
-                  {allProducts[0].description}
+                <h1 className="font-heading font-black text-2xl sm:text-3xl text-white">
+                  Authentic Electronics Catalog
+                </h1>
+                <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-xl">
+                  Browse live warehouse-tracked electronics. Only verified products added by store administrators appear in this catalog.
                 </p>
+              </div>
 
-                <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between">
-                  <div>
-                    <span className="text-xs text-slate-400">Stock: {allProducts[0].stock} units</span>
-                    <p className="font-heading font-extrabold text-xl text-white">₹{allProducts[0].price.toLocaleString('en-IN')}</p>
+              {isAdmin && (
+                <button
+                  onClick={() => navigate('/admin')}
+                  className="px-4 py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl font-bold text-xs flex items-center gap-2 cursor-pointer transition shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Promotional Offer Banner</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 2. MAIN LAYOUT: LEFT SIDEBAR NAVIGATION + RIGHT SCROLLABLE PRODUCTS */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          
+          {/* LEFT SIDEBAR: CATEGORIES, ALL, AND ABOUT NAVIGATION */}
+          <aside className="lg:col-span-3 space-y-4 lg:sticky lg:top-24">
+            
+            <div className="bg-[#0b0e24] rounded-3xl border border-slate-800 p-5 shadow-xl space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-cyan-400">
+                  <Layers className="w-4 h-4" />
+                  <span>Navigation</span>
+                </div>
+                <span className="text-[11px] font-bold text-slate-400">
+                  {categories.length} Categories
+                </span>
+              </div>
+
+              {/* Navigation Items List */}
+              <div className="space-y-1.5 text-xs font-bold">
+                
+                {/* 1. All Products (Scrollable) */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategorySlug('all')}
+                  className={`w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center justify-between cursor-pointer ${
+                    selectedCategorySlug === 'all'
+                      ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-slate-950 shadow-md font-black'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Package className="w-4 h-4" />
+                    <span>All Products</span>
                   </div>
+                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
+                    selectedCategorySlug === 'all' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-800 text-slate-400'
+                  }`}>
+                    {allProducts.length}
+                  </span>
+                </button>
+
+                {/* 2. Admin Added Categories (ONLY what admin adds, 0 if unadded) */}
+                {categories.length === 0 ? (
+                  <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 text-center space-y-1 my-2">
+                    <p className="text-[11px] font-bold text-slate-400">0 Categories in Database</p>
+                    <p className="text-[10px] text-slate-400">
+                      Categories added by store admin will dynamically list here.
+                    </p>
+                  </div>
+                ) : (
+                  categories.map((cat) => {
+                    const isSelected = selectedCategorySlug === cat.id || selectedCategorySlug === cat.slug || selectedCategorySlug.toLowerCase() === cat.name.toLowerCase();
+                    const productCount = allProducts.filter(p => p.categoryId === cat.id || p.categoryName?.toLowerCase() === cat.name.toLowerCase()).length;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setSelectedCategorySlug(cat.id)}
+                        className={`w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center justify-between cursor-pointer ${
+                          isSelected
+                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs'
+                            : 'text-slate-300 hover:text-white hover:bg-slate-900'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 truncate">
+                          <Cpu className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                          <span className="truncate">{cat.name}</span>
+                        </div>
+                        <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 text-[10px] font-mono shrink-0 ml-1">
+                          {productCount}
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+
+                {/* 3. About Navigation Link (Opens About modal with 4 cards) */}
+                <div className="pt-2 border-t border-slate-800/80 mt-2">
                   <button
-                    onClick={() => navigate(`/products/${allProducts[0].id}`)}
-                    className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 text-slate-950 font-black text-xs rounded-xl hover:opacity-95 transition cursor-pointer shadow-md"
+                    type="button"
+                    onClick={() => setAboutModalOpen(true)}
+                    className="w-full text-left px-3.5 py-2.5 rounded-xl text-cyan-300 hover:text-white hover:bg-cyan-500/10 border border-cyan-500/30 transition flex items-center justify-between cursor-pointer font-bold"
                   >
-                    View Details
+                    <div className="flex items-center gap-2.5">
+                      <Info className="w-4 h-4 text-cyan-400" />
+                      <span>About BUYGEN</span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-cyan-400" />
                   </button>
                 </div>
+
               </div>
-            ) : (
-              <div className="relative rounded-2xl bg-gradient-to-b from-slate-900 to-indigo-950/80 border border-slate-700/80 p-6 backdrop-blur-xl shadow-2xl text-center space-y-4">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center mx-auto border border-indigo-500/30">
-                  <Package className="w-7 h-7" />
-                </div>
-                <div>
-                  <span className="px-2.5 py-1 text-[11px] font-black uppercase rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 inline-block mb-2">
-                    Clean Catalog (0 Mock Items)
-                  </span>
-                  <h3 className="font-heading font-black text-xl text-white">
-                    Store Catalog Ready
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                    Zero mock products loaded. Products added in the Admin Console will instantly showcase here.
-                  </p>
-                </div>
-                <div className="pt-2">
+            </div>
+
+            {/* User Session Quick Card */}
+            {!user && (
+              <div className="bg-[#0b0e24] rounded-3xl border border-indigo-500/30 p-5 shadow-xl space-y-3">
+                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400 block">
+                  Customer Sign In
+                </span>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Sign in or register to place electronics orders, save your wishlist, and enjoy instant checkout.
+                </p>
+                <div className="flex items-center gap-2 pt-1">
                   <button
-                    onClick={() => navigate('/admin')}
-                    className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs rounded-xl shadow-lg transition cursor-pointer"
+                    onClick={() => navigate('/login')}
+                    className="flex-1 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-slate-950 font-black text-xs rounded-xl transition cursor-pointer text-center"
                   >
-                    Open Admin Console & Add Product
+                    Sign In
+                  </button>
+                  <button
+                    onClick={() => navigate('/register')}
+                    className="flex-1 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold text-xs rounded-xl border border-slate-700 transition cursor-pointer text-center"
+                  >
+                    Register
                   </button>
                 </div>
               </div>
             )}
-          </div>
 
-        </div>
-      </section>
+          </aside>
 
-      {/* 2. Category Grid */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="font-heading font-extrabold text-2xl sm:text-3xl text-white">
-              Browse Categories
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              Top-tier consumer electronics curated across 10 specialized categories.
-            </p>
-          </div>
-          <button
-            onClick={() => navigate('/products')}
-            className="text-xs sm:text-sm font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
-          >
-            <span>View All</span>
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
+          {/* RIGHT MAIN AREA: SEARCH & SCROLLABLE PRODUCTS GRID */}
+          <main className="lg:col-span-9 space-y-6">
+            
+            {/* Search & Active Filter Bar */}
+            <div className="bg-[#0b0e24] rounded-2xl border border-slate-800 p-4 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  placeholder="Search products by model, brand, processor..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs placeholder:text-slate-500 focus:outline-hidden focus:border-cyan-400"
+                />
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-          {categories.map((cat) => (
-            <div
-              key={cat.id}
-              onClick={() => navigate(`/categories/${cat.slug}`)}
-              className="group p-5 bg-[#0c0f26] rounded-2xl border border-slate-800 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 transition cursor-pointer flex flex-col justify-between"
-            >
-              <div>
-                <div className="w-12 h-12 rounded-xl bg-slate-950 border border-cyan-500/30 text-cyan-400 group-hover:bg-gradient-to-tr group-hover:from-cyan-500 group-hover:to-indigo-600 group-hover:text-white transition flex items-center justify-center font-bold text-lg mb-3">
-                  <Cpu className="w-6 h-6" />
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-slate-400 font-medium">Viewing:</span>
+                <span className="font-bold text-cyan-300 bg-cyan-500/10 px-2.5 py-1 rounded-lg border border-cyan-500/30">
+                  {selectedCategorySlug === 'all' 
+                    ? 'All Products' 
+                    : (categories.find(c => c.id === selectedCategorySlug)?.name || selectedCategorySlug)}
+                </span>
+                <span className="text-slate-400">({displayedProducts.length} items)</span>
+              </div>
+            </div>
+
+            {/* Scrollable Products Grid */}
+            {loading ? (
+              <div className="p-16 text-center text-slate-400 text-xs">
+                Loading products catalog...
+              </div>
+            ) : displayedProducts.length === 0 ? (
+              /* CLEAN ZERO MOCK DATA STATE */
+              <div className="bg-[#0b0e24] rounded-3xl p-8 sm:p-14 border border-slate-800 text-center space-y-4">
+                <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mx-auto border border-indigo-500/20">
+                  <Package className="w-8 h-8" />
                 </div>
-                <h3 className="font-heading font-bold text-white group-hover:text-cyan-400 transition text-sm">
-                  {cat.name}
+                <h3 className="font-heading font-black text-2xl text-white">
+                  {searchQuery ? 'No Products Found' : '0 Products in Catalog'}
                 </h3>
-                <p className="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                  {cat.description}
+                <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
+                  {searchQuery 
+                    ? `No products match your search query "${searchQuery}".`
+                    : 'Zero mock products are loaded in the database. When the store administrator adds authentic products in the Admin Console, they will appear here instantly.'}
                 </p>
+                {isAdmin && (
+                  <div className="pt-2">
+                    <button
+                      onClick={() => navigate('/admin')}
+                      className="px-6 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 text-slate-950 font-black text-xs rounded-xl shadow-lg transition cursor-pointer"
+                    >
+                      Open Admin Console & Add Product
+                    </button>
+                  </div>
+                )}
               </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {displayedProducts.map((p) => (
+                  <ProductCard key={p.id} product={p} navigate={navigate} />
+                ))}
+              </div>
+            )}
 
-              <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] font-semibold text-slate-400">
-                <span>{cat.productCount || 0} Products</span>
-                <ChevronRight className="w-3.5 h-3.5 text-cyan-400 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-          ))}
+          </main>
+
         </div>
       </section>
 
-      {/* 4. Zero Products Ready State */}
-      {allProducts.length === 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-[#0c0f26] rounded-3xl p-8 sm:p-12 border border-slate-800 text-center space-y-4">
-            <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mx-auto border border-indigo-500/20">
-              <Package className="w-8 h-8" />
-            </div>
-            <h2 className="font-heading font-black text-2xl text-white">
-              Store Catalog Ready for Inventory
-            </h2>
-            <p className="text-sm text-slate-400 max-w-lg mx-auto">
-              All mock data has been removed (0 items). Products will be displayed to customers as soon as they are stocked by the store administrator.
-            </p>
-            <div className="pt-2">
-              <button
-                onClick={() => navigate('/admin')}
-                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/30 transition cursor-pointer"
-              >
-                Go to Admin Console & Stock Products
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* 5. Featured Products */}
-      {featuredProducts.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-slate-900 border border-cyan-500/30 text-cyan-400 flex items-center justify-center font-bold">
-                <Zap className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="font-heading font-extrabold text-2xl sm:text-3xl text-white">
-                  Featured Products
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-                  Hand-picked flagship gadgets with verified stock.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => navigate('/products')}
-              className="text-xs sm:text-sm font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
-            >
-              <span>See More</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredProducts.map((p) => (
-              <ProductCard key={p.id} product={p} navigate={navigate} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* 5. Trending Electronics */}
-      {trendingProducts.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-slate-900 border border-amber-500/30 text-amber-400 flex items-center justify-center font-bold">
-                <Flame className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="font-heading font-extrabold text-2xl sm:text-3xl text-white">
-                  Trending Right Now
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-                  Most viewed and purchased consumer gadgets this week.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => navigate('/products?sortBy=popularity')}
-              className="text-xs sm:text-sm font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
-            >
-              <span>See More</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {trendingProducts.map((p) => (
-              <ProductCard key={p.id} product={p} navigate={navigate} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* 6. Special Discounts & Deals */}
-      {dealProducts.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-slate-900 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-bold">
-                <Tag className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="font-heading font-extrabold text-2xl sm:text-3xl text-white">
-                  Exclusive Deals & Discounts
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-                  Save up to 18% on high-performance gaming gear and accessories.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => navigate('/products')}
-              className="text-xs sm:text-sm font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
-            >
-              <span>All Deals</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {dealProducts.map((p) => (
-              <ProductCard key={p.id} product={p} navigate={navigate} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* 7. New Arrivals */}
-      {newArrivals.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-slate-900 border border-indigo-500/30 text-indigo-400 flex items-center justify-center font-bold">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="font-heading font-extrabold text-2xl sm:text-3xl text-white">
-                  New Arrivals
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-                  Fresh releases hot off the manufacturer line.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => navigate('/products?sortBy=newest')}
-              className="text-xs sm:text-sm font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
-            >
-              <span>See All New</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {newArrivals.map((p) => (
-              <ProductCard key={p.id} product={p} navigate={navigate} />
-            ))}
-          </div>
-        </section>
-      )}
+      {/* About Modal (Contains the 4 assurance cards: Express Dispatch, Genuine Warranty, 7-Day Replacement, Smart Tech Advisor) */}
+      <AboutModal
+        isOpen={aboutModalOpen}
+        onClose={() => setAboutModalOpen(false)}
+        navigate={navigate}
+      />
 
     </div>
   );

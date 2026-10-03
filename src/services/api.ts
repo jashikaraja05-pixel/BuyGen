@@ -12,7 +12,8 @@ import type {
   PaymentMethod,
   SearchLog,
   UserLoginLog,
-  PaymentMethodConfig
+  PaymentMethodConfig,
+  OfferBanner
 } from '../types/index.ts';
 
 const TOKEN_KEY = 'buygen_auth_token';
@@ -213,6 +214,38 @@ export const api = {
   deleteCategory: (id: string) =>
     request<{ success: boolean; message: string }>(`/categories/${id}`, {
       method: 'DELETE'
+    }),
+
+  clearAllCategories: () =>
+    request<{ success: boolean; message: string }>('/categories/all/clear', {
+      method: 'DELETE'
+    }),
+
+  // Promotional Offers & Banners (Added by Admin)
+  getOffers: () => request<{ offers: OfferBanner[] }>('/offers'),
+
+  getAdminOffers: () => request<{ offers: OfferBanner[] }>('/admin/offers'),
+
+  createOffer: (data: Partial<OfferBanner>) =>
+    request<{ offer: OfferBanner; message: string }>('/admin/offers', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  updateOffer: (id: string, data: Partial<OfferBanner>) =>
+    request<{ offer: OfferBanner; message: string }>(`/admin/offers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+  deleteOffer: (id: string) =>
+    request<{ success: boolean; message: string }>(`/admin/offers/${id}`, {
+      method: 'DELETE'
+    }),
+
+  cleanCatalog: () =>
+    request<{ success: boolean; message: string; deletedProducts: number; deletedCategories: number }>('/admin/clean-catalog', {
+      method: 'POST'
     }),
 
   // Cart

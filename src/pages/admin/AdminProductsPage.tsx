@@ -15,7 +15,14 @@ import {
   History,
   ChevronRight,
   User,
-  IndianRupee
+  IndianRupee,
+  Upload,
+  Camera,
+  Link,
+  Maximize2,
+  Minimize2,
+  FileImage,
+  FolderPlus
 } from 'lucide-react';
 import type { Product, Category } from '../../types/index.ts';
 import { api } from '../../services/api.ts';
@@ -33,12 +40,26 @@ export const AdminProductsPage: React.FC = () => {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [isModalFullScreen, setIsModalFullScreen] = useState<boolean>(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  // Close modal on Escape key press
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isModalOpen) {
+        setIsModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isModalOpen]);
 
   // Form Fields
   const [name, setName] = useState('');
   const [brand, setBrand] = useState('');
+  const [categoryMode, setCategoryMode] = useState<'select' | 'custom'>('select');
   const [categoryId, setCategoryId] = useState('');
+  const [customCategoryName, setCustomCategoryName] = useState('');
   const [subcategory, setSubcategory] = useState('');
   const [price, setPrice] = useState<number>(0);
   const [originalPrice, setOriginalPrice] = useState<number>(0);
@@ -46,13 +67,16 @@ export const AdminProductsPage: React.FC = () => {
   const [stock, setStock] = useState<number>(10);
   const [colours, setColours] = useState<string>('');
   const [description, setDescription] = useState('');
-  const [image1, setImage1] = useState('');
-  const [image2, setImage2] = useState('');
+  const [imagesList, setImagesList] = useState<string[]>([]);
+  const [customImageUrl, setCustomImageUrl] = useState('');
   const [specs, setSpecs] = useState<{ key: string; value: string }[]>([
     { key: 'Processor', value: '' },
-    { key: 'RAM', value: '' }
+    { key: 'RAM', value: '' },
+    { key: 'Storage', value: '' },
+    { key: 'Display', value: '' }
   ]);
-  const [customCategoryName, setCustomCategoryName] = useState('');
+  const [bulkSpecsText, setBulkSpecsText] = useState('');
+  const [showBulkSpecs, setShowBulkSpecs] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -91,21 +115,27 @@ export const AdminProductsPage: React.FC = () => {
     setEditingProduct(null);
     setName('');
     setBrand('');
+    setCategoryMode(categories.length > 0 ? 'select' : 'custom');
     setCategoryId(categories[0]?.id || '');
     setCustomCategoryName('');
     setSubcategory('');
     setPrice(0);
     setOriginalPrice(0);
     setDiscount(0);
-    setStock(0);
+    setStock(10);
     setColours('');
     setDescription('');
-    setImage1('');
-    setImage2('');
+    setImagesList([]);
+    setCustomImageUrl('');
     setSpecs([
       { key: 'Processor', value: '' },
-      { key: 'RAM', value: '' }
+      { key: 'RAM', value: '' },
+      { key: 'Storage', value: '' },
+      { key: 'Display', value: '' },
+      { key: 'Battery', value: '' }
     ]);
+    setBulkSpecsText('');
+    setShowBulkSpecs(false);
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -114,8 +144,9 @@ export const AdminProductsPage: React.FC = () => {
     setEditingProduct(product);
     setName(product.name);
     setBrand(product.brand);
+    setCategoryMode('select');
     setCategoryId(product.categoryId);
-    setCustomCategoryName('');
+    setCustomCategoryName(product.categoryName || '');
     setSubcategory(product.subcategory || '');
     setPrice(product.price);
     setOriginalPrice(product.originalPrice);
@@ -124,20 +155,81 @@ export const AdminProductsPage: React.FC = () => {
     const existingColours = product.colors || product.availableColours || [];
     setColours(existingColours.join(', '));
     setDescription(product.description);
-    setImage1(product.images[0] || '');
-    setImage2(product.images[1] || '');
+    const imgs = product.images && product.images.length > 0 ? product.images : [];
+    setImagesList(imgs);
+    setCustomImageUrl('');
     
     const specEntries = Object.entries(product.specifications || {}).map(([key, value]) => ({ key, value }));
-    setSpecs(specEntries.length ? specEntries : [{ key: 'Processor', value: '' }, { key: 'RAM', value: '' }]);
+    setSpecs(specEntries.length ? specEntries : [
+      { key: 'Processor', value: '' },
+      { key: 'RAM', value: '' },
+      { key: 'Storage', value: '' },
+      { key: 'Display', value: '' }
+    ]);
+    setBulkSpecsText(specEntries.map(s => `${s.key}: ${s.value}`).join('\n'));
+    setShowBulkSpecs(false);
     setFormError(null);
     setIsModalOpen(true);
+  };
+
+  // Media file upload handler (converts browsed file to base64 Data URL)
+  const handleFilesSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        if (result) {
+          setImagesList((prev) => [...prev, result]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  const handleAddImageUrl = () => {
+    if (customImageUrl.trim()) {
+      setImagesList((prev) => [...prev, customImageUrl.trim()]);
+      setCustomImageUrl('');
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setImagesList((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleApplyBulkSpecs = () => {
+    if (!bulkSpecsText.trim()) return;
+    const lines = bulkSpecsText.split('\n');
+    const newSpecs: { key: string; value: string }[] = [];
+    lines.forEach(line => {
+      const parts = line.split(/[:=]/);
+      if (parts.length >= 2) {
+        const k = parts[0].trim();
+        const v = parts.slice(1).join(':').trim();
+        if (k && v) newSpecs.push({ key: k, value: v });
+      }
+    });
+    if (newSpecs.length > 0) {
+      setSpecs(newSpecs);
+      setShowBulkSpecs(false);
+    }
   };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     let targetCatId = categoryId;
+    let targetCatName = '';
 
-    if (!targetCatId && customCategoryName.trim()) {
+    // Handle Category: either chosen from dropdown or typed directly
+    if (categoryMode === 'custom' || (!targetCatId && customCategoryName.trim())) {
+      if (!customCategoryName.trim()) {
+        setFormError('Please enter a Category Name.');
+        return;
+      }
       try {
         const res = await api.createCategory({
           name: customCategoryName.trim(),
@@ -146,39 +238,59 @@ export const AdminProductsPage: React.FC = () => {
           icon: 'Cpu'
         });
         targetCatId = res.category.id;
+        targetCatName = res.category.name;
         setCategoryId(res.category.id);
+        // Refresh categories list
+        const catRes = await api.getCategories();
+        setCategories(catRes.categories || []);
       } catch (err: any) {
         setFormError('Failed to create category: ' + (err.message || 'Error'));
         return;
       }
+    } else {
+      const found = categories.find(c => c.id === targetCatId);
+      targetCatName = found ? found.name : 'General';
     }
 
-    if (!name.trim() || !brand.trim() || !targetCatId) {
-      setFormError('Product Name, Brand, and Category are required.');
+    if (!name.trim()) {
+      setFormError('Product Title is required.');
+      return;
+    }
+    if (!brand.trim()) {
+      setFormError('Brand is required.');
+      return;
+    }
+    if (!targetCatId) {
+      setFormError('Category is required. Please select or type a category.');
       return;
     }
     if (price <= 0) {
-      setFormError('Price must be greater than zero.');
+      setFormError('Selling Price must be greater than zero.');
       return;
     }
     if (stock < 0) {
-      setFormError('Stock cannot be negative.');
+      setFormError('Warehouse Stock Quantity cannot be negative.');
       return;
+    }
+
+    // Specifications
+    const specifications: Record<string, string> = {};
+    specs.forEach(s => {
+      if (s.key.trim() && s.value.trim()) {
+        specifications[s.key.trim()] = s.value.trim();
+      }
+    });
+
+    // Images
+    const finalImages = [...imagesList];
+    if (finalImages.length === 0) {
+      // Default fallback electronics image if user didn't attach any photo
+      finalImages.push('https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop');
     }
 
     try {
       setSaving(true);
       setFormError(null);
-
-      const specifications: Record<string, string> = {};
-      specs.forEach(s => {
-        if (s.key.trim() && s.value.trim()) {
-          specifications[s.key.trim()] = s.value.trim();
-        }
-      });
-
-      const images = [image1.trim()];
-      if (image2.trim()) images.push(image2.trim());
 
       const parsedColours = colours
         .split(',')
@@ -193,6 +305,7 @@ export const AdminProductsPage: React.FC = () => {
         name: name.trim(),
         brand: brand.trim(),
         categoryId: targetCatId,
+        categoryName: targetCatName,
         subcategory: subcategory.trim() || undefined,
         price,
         originalPrice: originalPrice > price ? originalPrice : price,
@@ -200,8 +313,8 @@ export const AdminProductsPage: React.FC = () => {
         stock,
         colors: parsedColours,
         availableColours: parsedColours,
-        description: description.trim(),
-        images,
+        description: description.trim() || `${brand} ${name} consumer electronics device with verified warranty.`,
+        images: finalImages,
         specifications,
         adminEmail: user?.email || 'admin@buygen.com'
       };
@@ -640,281 +753,561 @@ export const AdminProductsPage: React.FC = () => {
 
       {/* Add / Edit Product Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-          <div className="bg-[#0b0e24] border border-cyan-500/40 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-6 my-8 text-white">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md overflow-hidden ${
+          isModalFullScreen ? 'p-0' : 'p-2 sm:p-4'
+        }`}>
+          {/* Floating always-visible close button in top right of screen */}
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(false)}
+            className="fixed top-4 right-4 z-[70] px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl shadow-2xl transition cursor-pointer flex items-center gap-1.5 ring-2 ring-white/20 active:scale-95 group font-black text-xs"
+            title="Close Product Modal (Cross / Esc)"
+          >
+            <X className="w-5 h-5 text-white stroke-[3]" />
+            <span className="hidden sm:inline">Close (Esc)</span>
+          </button>
+
+          <div className={`bg-[#0b0e24] border border-cyan-500/40 shadow-2xl text-white flex flex-col overflow-hidden transition-all duration-200 ${
+            isModalFullScreen 
+              ? 'w-full h-full rounded-none' 
+              : 'max-w-5xl w-full rounded-3xl h-[94vh]'
+          }`}>
+            
+            {/* 1. STICKY TOP HEADER - ALWAYS IN VIEWPORT WITH PROMINENT CROSS (X) BUTTON */}
+            <div className="sticky top-0 z-30 bg-[#0c102c] px-5 sm:px-8 py-4 border-b border-slate-800 flex items-center justify-between shadow-md">
               <div className="flex items-center gap-3">
-                <h3 className="font-heading font-black text-xl text-white">
-                  {editingProduct ? 'Edit Product' : 'Add New Product'}
-                </h3>
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-400 to-amber-500 text-slate-950 font-black flex items-center justify-center shadow-md">
+                  <Package className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-black text-lg sm:text-xl text-white flex items-center gap-2">
+                    <span>{editingProduct ? 'Edit Product' : 'Add New Product'}</span>
+                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                      Inventory Form
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Category selection, warehouse stock, specifications column, and photo upload
+                  </p>
+                </div>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="p-1 text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
+
+              {/* Window Controls: Fullscreen toggle & Prominent Crossing (X) Close button */}
+              <div className="flex items-center gap-2 pr-12 sm:pr-0">
+                <button
+                  type="button"
+                  onClick={() => setIsModalFullScreen(!isModalFullScreen)}
+                  className="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition cursor-pointer text-xs font-bold flex items-center gap-1.5"
+                  title={isModalFullScreen ? 'Exit Full Screen' : 'View Full Screen'}
+                >
+                  {isModalFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                  <span className="hidden sm:inline">{isModalFullScreen ? 'Windowed' : 'Full Screen'}</span>
+                </button>
+
+                {/* Big, Obvious Crossing (X) Close Button */}
+                <button 
+                  type="button"
+                  onClick={() => setIsModalOpen(false)} 
+                  className="px-3.5 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-black text-xs transition cursor-pointer flex items-center gap-1.5 shadow-lg shadow-rose-600/30 group active:scale-95"
+                  title="Close Window (Cross Symbol)"
+                >
+                  <X className="w-5 h-5 text-white stroke-[3]" />
+                  <span>Close</span>
+                </button>
+              </div>
             </div>
 
             {formError && (
-              <div className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs rounded-xl flex items-center gap-2">
+              <div className="mx-6 mt-4 p-3 bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs rounded-xl flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                 <span>{formError}</span>
               </div>
             )}
 
-            <form onSubmit={handleSaveProduct} className="space-y-4 text-xs sm:text-sm">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                    Product Title *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Product 1 (or any custom product name)"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-400 focus:outline-hidden"
-                  />
+            {/* 2. SCROLLABLE FORM BODY */}
+            <form onSubmit={handleSaveProduct} className="flex-1 overflow-y-auto p-5 sm:p-8 space-y-6 text-xs sm:text-sm">
+              
+              {/* STEP 1: CATEGORY SELECTION & WAREHOUSE STOCK */}
+              <div className="p-4 sm:p-5 bg-slate-950/80 rounded-2xl border border-slate-800/90 space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg bg-cyan-500/20 text-cyan-300 font-bold flex items-center justify-center text-xs">1</span>
+                    <h4 className="font-heading font-black text-sm uppercase tracking-wider text-white">
+                      Category & Stock Quantity
+                    </h4>
+                  </div>
+                  <span className="text-[11px] text-slate-400">Choose existing or type new</span>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                    Brand *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Brand Name"
-                    value={brand}
-                    onChange={(e) => setBrand(e.target.value)}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-400 focus:outline-hidden"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Category Selection / Creation */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                        Category *
+                      </label>
+                      <div className="flex items-center p-0.5 bg-slate-900 rounded-lg border border-slate-800 text-[11px]">
+                        <button
+                          type="button"
+                          onClick={() => setCategoryMode('select')}
+                          className={`px-2.5 py-1 rounded-md font-bold transition cursor-pointer ${
+                            categoryMode === 'select' ? 'bg-cyan-500 text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          Choose Category
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCategoryMode('custom')}
+                          className={`px-2.5 py-1 rounded-md font-bold transition cursor-pointer ${
+                            categoryMode === 'custom' ? 'bg-cyan-500 text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          + Type New Name
+                        </button>
+                      </div>
+                    </div>
+
+                    {categoryMode === 'select' && categories.length > 0 ? (
+                      <select
+                        value={categoryId}
+                        onChange={(e) => setCategoryId(e.target.value)}
+                        className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden cursor-pointer font-medium"
+                      >
+                        <option value="">-- Choose From {categories.length} Categories --</option>
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Type Category Name (e.g. Smartphones, Laptops, Audio, Monitors)"
+                          value={customCategoryName}
+                          onChange={(e) => setCustomCategoryName(e.target.value)}
+                          className="w-full p-2.5 bg-slate-900 border border-cyan-500/50 rounded-xl text-white placeholder:text-slate-500 focus:border-amber-400 focus:outline-hidden font-medium"
+                        />
+                        <p className="text-[11px] text-cyan-400/90 mt-1">
+                          ✓ This category will be automatically added to the active database.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Stock Quantity */}
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+                      Warehouse Stock Quantity *
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      required
+                      placeholder="e.g. 50"
+                      value={stock}
+                      onChange={(e) => setStock(Number(e.target.value))}
+                      className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden font-mono font-bold"
+                    />
+                    <span className="text-[11px] text-slate-400 block">
+                      Number of available units in inventory for this category/product.
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* STEP 2: PRODUCT IDENTITY & BRAND */}
+              <div className="p-4 sm:p-5 bg-slate-950/80 rounded-2xl border border-slate-800/90 space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
+                  <span className="w-6 h-6 rounded-lg bg-cyan-500/20 text-cyan-300 font-bold flex items-center justify-center text-xs">2</span>
+                  <h4 className="font-heading font-black text-sm uppercase tracking-wider text-white">
+                    Product Title & Brand
+                  </h4>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                    Category *
-                  </label>
-                  {categories.length > 0 ? (
-                    <select
-                      value={categoryId}
-                      onChange={(e) => setCategoryId(e.target.value)}
-                      className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-400 focus:outline-hidden cursor-pointer"
-                    >
-                      <option value="">-- Select Category --</option>
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+                      Product Title *
+                    </label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Smartphones, Audio, Laptops"
-                      value={customCategoryName}
-                      onChange={(e) => setCustomCategoryName(e.target.value)}
-                      className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-400 focus:outline-hidden"
+                      placeholder="e.g. Galaxy S24 Ultra 5G or MacBook Pro 16 M3 Max"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden font-medium"
                     />
-                  )}
-                </div>
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                    Subcategory (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Over-Ear ANC, Gaming Laptops"
-                    value={subcategory}
-                    onChange={(e) => setSubcategory(e.target.value)}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-400 focus:outline-hidden"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+                      Brand *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Samsung, Apple, Sony, Dell, ASUS"
+                      value={brand}
+                      onChange={(e) => setBrand(e.target.value)}
+                      className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden font-medium"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                    Warehouse Stock Quantity *
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    required
-                    value={stock}
-                    onChange={(e) => setStock(Number(e.target.value))}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-400 focus:outline-hidden"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                    Selling Price (₹ INR) *
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={price}
-                    onChange={(e) => setPrice(Number(e.target.value))}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-400 focus:outline-hidden font-mono font-bold"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                    Original / MRP Price (₹ INR)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={originalPrice}
-                    onChange={(e) => setOriginalPrice(Number(e.target.value))}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-400 focus:outline-hidden font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                    Discount Percentage (%)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="99"
-                    placeholder="e.g. 10"
-                    value={discount}
-                    onChange={(e) => setDiscount(Number(e.target.value))}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-400 focus:outline-hidden font-mono"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                    Available Colours (Comma-separated)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Cosmic Black, Titanium Gray, Aurora Blue"
-                    value={colours}
-                    onChange={(e) => setColours(e.target.value)}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-400 focus:outline-hidden"
-                  />
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Separate multiple colors with commas so customers can choose their variant.
-                  </p>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                    Description *
-                  </label>
-                  <textarea
-                    rows={3}
-                    required
-                    placeholder="Detailed specifications, flagship features, audio drivers, battery life..."
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-400 focus:outline-hidden"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                    Primary Image URL *
-                  </label>
-                  <input
-                    type="url"
-                    required
-                    placeholder="https://..."
-                    value={image1}
-                    onChange={(e) => setImage1(e.target.value)}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-400 focus:outline-hidden"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                    Secondary Image URL (Optional)
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="https://..."
-                    value={image2}
-                    onChange={(e) => setImage2(e.target.value)}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-400 focus:outline-hidden"
-                  />
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+                      Subcategory / Series (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Flagship 5G, Creator Edition, Over-Ear Wireless ANC, 4K Gaming"
+                      value={subcategory}
+                      onChange={(e) => setSubcategory(e.target.value)}
+                      className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Dynamic Specifications */}
-              <div className="space-y-2 pt-2 border-t border-slate-800">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                    Key Specifications & Attributes
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setSpecs(prev => [...prev, { key: '', value: '' }])}
-                    className="text-xs font-bold text-cyan-400 hover:text-cyan-300"
-                  >
-                    + Add Spec Row
-                  </button>
-                </div>
-
-                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                  {specs.map((s, idx) => (
-                    <div key={idx} className="flex gap-2 items-center">
-                      <input
-                        type="text"
-                        placeholder="Feature (e.g. Display)"
-                        value={s.key}
-                        onChange={(e) => {
-                          const updated = [...specs];
-                          updated[idx].key = e.target.value;
-                          setSpecs(updated);
-                        }}
-                        className="w-1/2 p-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Value (e.g. 120Hz AMOLED)"
-                        value={s.value}
-                        onChange={(e) => {
-                          const updated = [...specs];
-                          updated[idx].value = e.target.value;
-                          setSpecs(updated);
-                        }}
-                        className="w-1/2 p-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white"
-                      />
-                      {specs.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => setSpecs(specs.filter((_, i) => i !== idx))}
-                          className="p-1 text-slate-400 hover:text-rose-500"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
+              {/* STEP 3: DEDICATED SPECIFICATION COLUMN (FULL SECTION) */}
+              <div className="p-4 sm:p-5 bg-slate-950/80 rounded-2xl border border-cyan-500/30 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-300 font-bold flex items-center justify-center text-xs">3</span>
+                    <div>
+                      <h4 className="font-heading font-black text-sm uppercase tracking-wider text-white">
+                        Full Product Specifications Column
+                      </h4>
+                      <p className="text-[11px] text-slate-400">Add detailed hardware and software specifications</p>
                     </div>
-                  ))}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowBulkSpecs(!showBulkSpecs)}
+                      className="text-xs font-bold text-indigo-400 hover:text-indigo-300 cursor-pointer"
+                    >
+                      {showBulkSpecs ? 'Switch to Rows View' : 'Paste / Type Bulk Specs'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSpecs(prev => [...prev, { key: '', value: '' }])}
+                      className="px-3 py-1.5 bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-500/40 rounded-xl text-xs font-bold cursor-pointer transition flex items-center gap-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Spec Row</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Quick Preset Pills */}
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-bold text-slate-400">Click to quickly add preset spec attributes:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {['Processor', 'RAM', 'Storage', 'Display', 'Battery', 'Operating System', 'Graphics', 'Camera', 'Connectivity'].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => {
+                          if (!specs.some(s => s.key.toLowerCase() === preset.toLowerCase())) {
+                            setSpecs(prev => [...prev, { key: preset, value: '' }]);
+                          }
+                        }}
+                        className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-cyan-400 text-slate-300 hover:text-white rounded-lg text-xs font-medium cursor-pointer transition"
+                      >
+                        + {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bulk Specs Text Mode */}
+                {showBulkSpecs ? (
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-slate-400">
+                      Paste specifications formatted as <strong className="text-slate-200">Key: Value</strong> (one per line):
+                    </p>
+                    <textarea
+                      rows={5}
+                      value={bulkSpecsText}
+                      onChange={(e) => setBulkSpecsText(e.target.value)}
+                      placeholder={"Processor: Apple M3 Max\nRAM: 36GB Unified Memory\nStorage: 1TB NVMe SSD\nDisplay: 16.2 Liquid Retina XDR 120Hz\nBattery: 100Wh with 140W MagSafe Fast Charge"}
+                      className="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:border-amber-400 focus:outline-hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyBulkSpecs}
+                      className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 text-slate-950 font-black text-xs rounded-xl cursor-pointer"
+                    >
+                      Apply Pasted Specs to Rows
+                    </button>
+                  </div>
+                ) : (
+                  /* Structured Spec Rows */
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    {specs.map((s, idx) => (
+                      <div key={idx} className="flex gap-2 items-center">
+                        <input
+                          type="text"
+                          placeholder="Feature (e.g. Display)"
+                          value={s.key}
+                          onChange={(e) => {
+                            const updated = [...specs];
+                            updated[idx].key = e.target.value;
+                            setSpecs(updated);
+                          }}
+                          className="w-1/3 p-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:border-amber-400"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Specification Details (e.g. 120Hz LTPO AMOLED, 2600 nits)"
+                          value={s.value}
+                          onChange={(e) => {
+                            const updated = [...specs];
+                            updated[idx].value = e.target.value;
+                            setSpecs(updated);
+                          }}
+                          className="flex-1 p-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:border-amber-400"
+                        />
+                        {specs.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setSpecs(specs.filter((_, i) => i !== idx))}
+                            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg cursor-pointer transition"
+                            title="Remove row"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* STEP 4: PRICING & COLOURS */}
+              <div className="p-4 sm:p-5 bg-slate-950/80 rounded-2xl border border-slate-800/90 space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
+                  <span className="w-6 h-6 rounded-lg bg-cyan-500/20 text-cyan-300 font-bold flex items-center justify-center text-xs">4</span>
+                  <h4 className="font-heading font-black text-sm uppercase tracking-wider text-white">
+                    Pricing & Color Variants
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+                      Selling Price (₹ INR) *
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      placeholder="e.g. 74999"
+                      value={price}
+                      onChange={(e) => setPrice(Number(e.target.value))}
+                      className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden font-mono font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+                      MRP / Original Price (₹ INR)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="e.g. 84999"
+                      value={originalPrice}
+                      onChange={(e) => setOriginalPrice(Number(e.target.value))}
+                      className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+                      Discount % (Optional)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="99"
+                      placeholder="e.g. 12"
+                      value={discount}
+                      onChange={(e) => setDiscount(Number(e.target.value))}
+                      className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden font-mono"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-3">
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+                      Available Colours (Comma-separated)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Titanium Black, Natural Titanium, Desert Gold, Blue Sapphire"
+                      value={colours}
+                      onChange={(e) => setColours(e.target.value)}
+                      className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Separate each color with commas so customers can choose variants on product details.
+                    </p>
+                  </div>
+
+                  <div className="sm:col-span-3">
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+                      Product Description *
+                    </label>
+                    <textarea
+                      rows={3}
+                      required
+                      placeholder="Highlight key capabilities, build materials, audio acoustics, battery longevity, and included accessories..."
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-800 flex items-center justify-end gap-3">
+              {/* STEP 5: PRODUCT PHOTOS & MEDIA (BROWSE, CAMERA, OR LINK) */}
+              <div className="p-4 sm:p-5 bg-slate-950/80 rounded-2xl border border-slate-800/90 space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg bg-cyan-500/20 text-cyan-300 font-bold flex items-center justify-center text-xs">5</span>
+                    <div>
+                      <h4 className="font-heading font-black text-sm uppercase tracking-wider text-white">
+                        Product Photos & Media
+                      </h4>
+                      <p className="text-[11px] text-slate-400">
+                        Browse device files, take camera photo, or provide image/video link
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-bold text-cyan-400">
+                    {imagesList.length} Media Added
+                  </span>
+                </div>
+
+                {/* Upload & Browse Controls */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Option A: Browse Files / Capture Camera */}
+                  <div className="p-4 rounded-xl bg-slate-900 border border-dashed border-cyan-500/40 hover:border-cyan-400 transition text-center space-y-2">
+                    <Upload className="w-8 h-8 text-cyan-400 mx-auto" />
+                    <div>
+                      <span className="font-bold text-xs text-white block">
+                        Browse Device Files / Take Photo
+                      </span>
+                      <span className="text-[11px] text-slate-400">
+                        Select image from computer, phone gallery, or camera
+                      </span>
+                    </div>
+
+                    <label className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-slate-950 font-black text-xs rounded-xl cursor-pointer shadow-md transition">
+                      <Camera className="w-4 h-4" />
+                      <span>Choose Files or Take Photo</span>
+                      <input
+                        type="file"
+                        accept="image/*,video/*"
+                        multiple
+                        onChange={handleFilesSelect}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+
+                  {/* Option B: Enter Web URL / Video Link */}
+                  <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+                      <Link className="w-4 h-4 text-amber-400" />
+                      <span>Or Enter Image / Video URL:</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        placeholder="https://images.unsplash.com/..."
+                        value={customImageUrl}
+                        onChange={(e) => setCustomImageUrl(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddImageUrl();
+                          }
+                        }}
+                        className="flex-1 p-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:border-amber-400 focus:outline-hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddImageUrl}
+                        className="px-3 py-2 bg-amber-500 text-slate-950 font-black text-xs rounded-xl hover:bg-amber-400 transition cursor-pointer"
+                      >
+                        Add
+                      </button>
+                    </div>
+                    <span className="text-[10px] text-slate-500 block">
+                      Supports any web image URL, direct mp4 video, or external media link.
+                    </span>
+                  </div>
+                </div>
+
+                {/* Previews of Added Images */}
+                {imagesList.length > 0 && (
+                  <div className="space-y-2 pt-2 border-t border-slate-800">
+                    <span className="text-xs font-bold text-slate-300 block">
+                      Attached Product Images ({imagesList.length}) - 1st is Primary Display:
+                    </span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                      {imagesList.map((imgUrl, index) => (
+                        <div key={index} className="relative group rounded-xl overflow-hidden border border-slate-700 bg-slate-900 aspect-square">
+                          <img
+                            src={imgUrl}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                          {index === 0 && (
+                            <span className="absolute top-1 left-1 bg-cyan-500 text-slate-950 text-[9px] font-black px-1.5 py-0.5 rounded shadow-xs">
+                              Primary
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(index)}
+                            className="absolute top-1 right-1 p-1 bg-rose-600/90 text-white rounded-lg opacity-80 group-hover:opacity-100 transition cursor-pointer"
+                            title="Remove image"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 3. STICKY FOOTER ACTIONS */}
+              <div className="sticky bottom-0 bg-[#0c102c] -mx-5 -mb-5 sm:-mx-8 sm:-mb-8 p-4 sm:p-6 border-t border-slate-800 flex items-center justify-between gap-4 z-20">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-slate-700 bg-slate-900 text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-800 cursor-pointer"
+                  className="px-5 py-2.5 border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold text-xs rounded-xl cursor-pointer transition"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-6 py-2 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-md cursor-pointer disabled:opacity-50"
-                >
-                  {saving ? 'Saving...' : editingProduct ? 'Save Changes' : 'Create Product'}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="px-6 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:opacity-95 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-500/20 cursor-pointer disabled:opacity-50 transition"
+                  >
+                    {saving ? 'Saving Product...' : editingProduct ? 'Save Product Changes' : 'Create & Stock Product'}
+                  </button>
+                </div>
               </div>
             </form>
+
           </div>
         </div>
       )}

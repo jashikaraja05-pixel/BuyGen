@@ -98,6 +98,28 @@ export interface ShippingAddress {
   pincode: string;
 }
 
+export interface ShippingCheckpoint {
+  id: string;
+  status: OrderStatus;
+  title: string;
+  description: string;
+  location: string;
+  timestamp: string;
+  completed: boolean;
+  current: boolean;
+}
+
+export interface ShippingInfo {
+  carrier: string;
+  trackingNumber: string;
+  estimatedDelivery: string;
+  currentStatus: OrderStatus;
+  currentLocation: string;
+  lastUpdated: string;
+  checkpoints: ShippingCheckpoint[];
+  notes?: string;
+}
+
 export interface Order {
   id: string;
   userId: string;
@@ -112,8 +134,22 @@ export interface Order {
   total: number;
   paymentMethod: PaymentMethod;
   status: OrderStatus;
+  shippingInfo?: ShippingInfo;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface OfferBanner {
+  id: string;
+  title: string;
+  subtitle: string;
+  badge?: string;
+  discountPercentage?: number;
+  promoCode?: string;
+  imageUrl?: string;
+  bgGradient?: string;
+  active: boolean;
+  createdAt: string;
 }
 
 export interface Review {

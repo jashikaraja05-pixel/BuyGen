@@ -479,15 +479,48 @@ export const AdminPaymentsPage: React.FC = () => {
 
                   <div>
                     <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                      Custom QR Code Image URL (Leave blank to auto-generate from UPI ID)
+                      Custom QR Code Image (Upload File / Photo or Enter URL)
                     </label>
-                    <input
-                      type="url"
-                      placeholder="https://..."
-                      value={qrCodeUrl}
-                      onChange={(e) => setQrCodeUrl(e.target.value)}
-                      className="w-full px-3.5 py-2 bg-[#0b0e24] border border-slate-800 rounded-xl text-white text-xs focus:border-cyan-400 focus:outline-hidden"
-                    />
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        placeholder="Paste image URL (or upload image below)"
+                        value={qrCodeUrl}
+                        onChange={(e) => setQrCodeUrl(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-[#0b0e24] border border-slate-800 rounded-xl text-white text-xs focus:border-cyan-400 focus:outline-hidden"
+                      />
+                      <div className="flex items-center gap-3">
+                        <label className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-bold cursor-pointer transition flex items-center gap-1.5">
+                          <span>Browse / Upload QR Image</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                  if (typeof reader.result === 'string') {
+                                    setQrCodeUrl(reader.result);
+                                  }
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </label>
+                        {qrCodeUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setQrCodeUrl('')}
+                            className="text-xs text-rose-400 hover:text-rose-300 font-bold"
+                          >
+                            Remove QR Image
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

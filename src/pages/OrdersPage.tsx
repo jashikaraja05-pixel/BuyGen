@@ -21,6 +21,9 @@ import {
 import type { Order, OrderStatus } from '../types/index.ts';
 import { api } from '../services/api.ts';
 import { useAuth } from '../context/AuthContext.tsx';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase.ts';
+import { RealTimeOrderTracker } from '../components/RealTimeOrderTracker.tsx';
 
 interface OrdersPageProps {
   navigate: (path: string) => void;
@@ -38,6 +41,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ navigate }) => {
 
   const statuses: OrderStatus[] = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered'];
 
+  // Auto-fetch orders via REST initially, and subscribe to real-time Firestore collection updates
   const loadOrders = useCallback(async (quiet = false) => {
     try {
       if (!quiet) setLoading(true);
@@ -65,14 +69,54 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ navigate }) => {
     loadOrders();
   }, [user, navigate, loadOrders]);
 
-  // Periodic real-time auto-refresh for active orders
+  // Firestore Real-Time Listener across customer orders
   useEffect(() => {
-    if (!user) return;
-    const interval = setInterval(() => {
-      loadOrders(true);
-    }, 15000);
-    return () => clearInterval(interval);
-  }, [user, loadOrders]);
+    if (!user?.id) return;
+
+    try {
+      const q = query(
+        collection(db, 'orders'),
+        where('userId', '==', user.id)
+      );
+
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const liveOrders: Order[] = [];
+            snapshot.forEach(docSnap => {
+              liveOrders.push(docSnap.data() as Order);
+            });
+            liveOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            setOrders(liveOrders);
+            setLoading(false);
+
+            if (!trackedOrderId && liveOrders.length > 0) {
+              const active = liveOrders.find(o => o.status !== 'Delivered') || liveOrders[0];
+              setTrackedOrderId(active.id);
+            }
+          }
+        },
+        (error) => {
+          console.warn('Firestore orders collection subscription:', error.message);
+          try {
+            handleFirestoreError(error, OperationType.GET, 'orders');
+          } catch {
+            // fallback gracefully
+          }
+        }
+      );
+
+      return () => unsubscribe();
+    } catch {
+      // Handled
+    }
+  }, [user?.id, trackedOrderId]);
+
+  // Handle single order real-time snapshot update
+  const handleOrderUpdatedFromRealTime = (updatedOrder: Order) => {
+    setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+  };
 
   const handleManualRefresh = async () => {
     try {
@@ -229,216 +273,13 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ navigate }) => {
         </button>
       </div>
 
-      {/* 2. REAL-TIME SHIPPING TRACKER FEATURE (Dedicated Active Order Tracking) */}
+      {/* 2. REAL-TIME SHIPPING TRACKER FEATURE (Fetches Live Shipping Updates from Firestore) */}
       {trackedOrder && (
-        <div className="bg-[#0c0f26] rounded-3xl border border-cyan-500/30 p-6 sm:p-8 shadow-[0_0_30px_rgba(6,182,212,0.1)] relative overflow-hidden space-y-6">
-          
-          {/* Subtle Ambient Glow */}
-          <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-          {/* Tracking Header Bar */}
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-800">
-            <div>
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-cyan-400 mb-1">
-                <Truck className="w-4 h-4 text-cyan-400" />
-                <span>Real-Time Shipment Tracking</span>
-              </div>
-              <h2 className="font-heading font-black text-xl sm:text-2xl text-white flex items-center gap-3">
-                <span>Order #{trackedOrder.id}</span>
-                {getStatusBadge(trackedOrder.status)}
-              </h2>
-            </div>
-
-            {/* AWB & Dispatch Info */}
-            <div className="flex flex-wrap items-center gap-3 text-xs">
-              <div className="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 flex items-center gap-2">
-                <span className="text-slate-400">AWB Tracking:</span>
-                <span className="font-mono font-bold text-cyan-300">{generateAWB(trackedOrder.id)}</span>
-                <button
-                  onClick={() => handleCopyAWB(generateAWB(trackedOrder.id))}
-                  className="text-slate-400 hover:text-white transition cursor-pointer"
-                  title="Copy AWB Tracking Number"
-                >
-                  {copiedId === generateAWB(trackedOrder.id) ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                </button>
-              </div>
-
-              <div className="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-slate-300">
-                <span className="text-slate-400">Carrier: </span>
-                <strong className="text-white">BlueDart Air Priority</strong>
-              </div>
-            </div>
-          </div>
-
-          {/* Stepper Progress Bar */}
-          <div className="relative z-10 pt-2 pb-4">
-            {/* Connecting Bar */}
-            <div className="relative flex items-center justify-between">
-              <div className="absolute top-5 left-6 right-6 h-1 bg-slate-800 -translate-y-1/2 z-0 rounded-full"></div>
-              <div 
-                className="absolute top-5 left-6 h-1 bg-gradient-to-r from-cyan-400 via-sky-400 to-indigo-500 -translate-y-1/2 z-0 transition-all duration-700 rounded-full shadow-[0_0_10px_rgba(6,182,212,0.8)]"
-                style={{ 
-                  width: `${(Math.max(0, getStatusStepIndex(trackedOrder.status)) / (statuses.length - 1)) * 92}%` 
-                }}
-              ></div>
-
-              {statuses.map((step, idx) => {
-                const currentIdx = getStatusStepIndex(trackedOrder.status);
-                const isPassed = idx <= currentIdx;
-                const isCurrent = idx === currentIdx;
-
-                return (
-                  <div key={step} className="relative z-10 flex flex-col items-center group">
-                    <div 
-                      className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs transition-all duration-300 shadow-md ${
-                        isCurrent
-                          ? 'bg-gradient-to-tr from-cyan-400 to-indigo-500 text-slate-950 ring-4 ring-cyan-500/20 scale-110 shadow-[0_0_15px_rgba(6,182,212,0.6)]'
-                          : isPassed
-                          ? 'bg-cyan-500 text-slate-950 ring-2 ring-cyan-500/30'
-                          : 'bg-slate-900 border border-slate-800 text-slate-500'
-                      }`}
-                    >
-                      {isPassed ? <Check className="w-4 h-4 stroke-[3]" /> : idx + 1}
-                    </div>
-
-                    <span className={`text-[11px] font-bold mt-2.5 text-center whitespace-nowrap transition ${
-                      isCurrent 
-                        ? 'text-cyan-300 font-black' 
-                        : isPassed 
-                        ? 'text-slate-200' 
-                        : 'text-slate-500'
-                    }`}>
-                      {step}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Real-time Tracking Highlights Grid */}
-          <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-            <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800/80 space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                Estimated Delivery
-              </span>
-              <p className="font-heading font-black text-sm text-cyan-300">
-                {trackedOrder.status === 'Delivered' 
-                  ? 'Delivered Successfully' 
-                  : getEstimatedDeliveryDate(trackedOrder)}
-              </p>
-              <span className="text-[11px] text-slate-500">
-                {trackedOrder.status === 'Delivered' ? 'Package received by customer' : 'Guaranteed Express Delivery'}
-              </span>
-            </div>
-
-            <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800/80 space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                Destination Address
-              </span>
-              <p className="font-heading font-bold text-sm text-white truncate">
-                {trackedOrder.shippingAddress.city}, {trackedOrder.shippingAddress.state}
-              </p>
-              <span className="text-[11px] text-slate-500">
-                PIN: {trackedOrder.shippingAddress.pincode} • Phone: {trackedOrder.customerPhone}
-              </span>
-            </div>
-
-            <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800/80 space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                Current Location Hub
-              </span>
-              <p className="font-heading font-bold text-sm text-indigo-300">
-                {trackedOrder.status === 'Pending' && 'Fulfillment Queue (Bengaluru Hub)'}
-                {trackedOrder.status === 'Confirmed' && 'Central Warehouse (Bengaluru 560100)'}
-                {trackedOrder.status === 'Processing' && 'Packing & Tamper-Sealing Station'}
-                {trackedOrder.status === 'Shipped' && `In Transit -> ${trackedOrder.shippingAddress.city} Delivery Hub`}
-                {trackedOrder.status === 'Delivered' && `Delivered at ${trackedOrder.shippingAddress.city}`}
-              </p>
-              <span className="text-[11px] text-slate-500">
-                Updated: {new Date(trackedOrder.updatedAt || trackedOrder.createdAt).toLocaleTimeString()}
-              </span>
-            </div>
-          </div>
-
-          {/* Live Checkpoint Log */}
-          <div className="relative z-10 pt-4 border-t border-slate-800/80">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
-              <Clock className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Real-Time Dispatch Checkpoints Log</span>
-            </h4>
-
-            <div className="space-y-3">
-              {/* Checkpoint 4: Delivered */}
-              {getStatusStepIndex(trackedOrder.status) >= 4 && (
-                <div className="flex items-start gap-3 text-xs">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 mt-1 ring-4 ring-emerald-500/20 shrink-0"></div>
-                  <div>
-                    <p className="font-bold text-emerald-300">Delivered — Package Handed Over with OTP</p>
-                    <p className="text-[11px] text-slate-400">Delivered directly to {trackedOrder.shippingAddress.fullName} at {trackedOrder.shippingAddress.address}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Checkpoint 3: Shipped */}
-              {getStatusStepIndex(trackedOrder.status) >= 3 && (
-                <div className="flex items-start gap-3 text-xs">
-                  <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 mt-1 ring-4 ring-cyan-500/20 shrink-0"></div>
-                  <div>
-                    <p className="font-bold text-cyan-300">In Transit — BlueDart Express Cargo Flight 824</p>
-                    <p className="text-[11px] text-slate-400">Dispatched from Bengaluru Sorting Hub. Arrived at {trackedOrder.shippingAddress.city} Regional Delivery Facility.</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Checkpoint 2: Processing */}
-              {getStatusStepIndex(trackedOrder.status) >= 2 && (
-                <div className="flex items-start gap-3 text-xs">
-                  <div className="w-2.5 h-2.5 rounded-full bg-purple-400 mt-1 ring-4 ring-purple-500/20 shrink-0"></div>
-                  <div>
-                    <p className="font-bold text-purple-300">Quality Verified & Packaging Complete</p>
-                    <p className="text-[11px] text-slate-400">Serial numbers registered, anti-static sealed, and boxed for air express transit.</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Checkpoint 1: Confirmed */}
-              {getStatusStepIndex(trackedOrder.status) >= 1 && (
-                <div className="flex items-start gap-3 text-xs">
-                  <div className="w-2.5 h-2.5 rounded-full bg-blue-400 mt-1 ring-4 ring-blue-500/20 shrink-0"></div>
-                  <div>
-                    <p className="font-bold text-blue-300">Order Confirmed by BUYGEN Store Admin</p>
-                    <p className="text-[11px] text-slate-400">Stock allocated atomically from central inventory database.</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Checkpoint 0: Placed */}
-              <div className="flex items-start gap-3 text-xs">
-                <div className="w-2.5 h-2.5 rounded-full bg-slate-400 mt-1 shrink-0"></div>
-                <div>
-                  <p className="font-bold text-slate-300">Order Placed Successfully ({trackedOrder.paymentMethod})</p>
-                  <p className="text-[11px] text-slate-500">{new Date(trackedOrder.createdAt).toLocaleString()}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Link to Full Receipt */}
-          <div className="relative z-10 flex justify-end pt-2">
-            <button
-              onClick={() => navigate(`/orders/${trackedOrder.id}`)}
-              className="text-xs font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1.5 transition cursor-pointer"
-            >
-              <span>View Full Order Invoice & Receipt</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-
+        <div id="realtime-tracker" className="scroll-mt-24">
+          <RealTimeOrderTracker 
+            order={trackedOrder} 
+            onOrderUpdated={handleOrderUpdatedFromRealTime} 
+          />
         </div>
       )}
 

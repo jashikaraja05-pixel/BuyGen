@@ -57,7 +57,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, navigat
             </p>
           </div>
 
-          {/* Pillars Grid */}
+          {/* Pillars Grid (Moved from front page cards as requested) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
             
             <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-start gap-3">
@@ -65,9 +65,9 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, navigat
                 <Truck className="w-4 h-4" />
               </div>
               <div>
-                <h4 className="font-bold text-white text-xs sm:text-sm">Real Inventory Tracking</h4>
+                <h4 className="font-bold text-white text-xs sm:text-sm">Free Express Dispatch</h4>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Stock deducts automatically upon each order. Zero mock stock — what you see is what is available in the warehouse.
+                  Fast same-day processing on all flagship electronics orders.
                 </p>
               </div>
             </div>
@@ -79,7 +79,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, navigat
               <div>
                 <h4 className="font-bold text-white text-xs sm:text-sm">100% Genuine Warranty</h4>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Every product is covered by manufacturer warranty with direct verification.
+                  Brand-authorized manufacturer warranty on every gadget sold.
                 </p>
               </div>
             </div>
@@ -89,7 +89,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, navigat
                 <RefreshCw className="w-4 h-4" />
               </div>
               <div>
-                <h4 className="font-bold text-white text-xs sm:text-sm">7-Day Easy Replacement</h4>
+                <h4 className="font-bold text-white text-xs sm:text-sm">7-Day Replacement</h4>
                 <p className="text-[11px] text-slate-400 mt-0.5">
                   Hassle-free replacement policy for defective or transit-damaged items.
                 </p>
@@ -97,13 +97,13 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, navigat
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-300 flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-300 flex items-center justify-center shrink-0">
                 <Zap className="w-4 h-4" />
               </div>
               <div>
-                <h4 className="font-bold text-white text-xs sm:text-sm">Multiple Payment Methods</h4>
+                <h4 className="font-bold text-white text-xs sm:text-sm">Smart Tech Advisor</h4>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Dynamic UPI QR Code scanning, Cash on Delivery (COD), and Credit/Debit cards.
+                  Intelligent requirement analysis connected to our live product catalog.
                 </p>
               </div>
             </div>

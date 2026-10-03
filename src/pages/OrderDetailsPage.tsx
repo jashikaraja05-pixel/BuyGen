@@ -17,6 +17,7 @@ import {
 import type { Order, OrderStatus } from '../types/index.ts';
 import { api } from '../services/api.ts';
 import { useAuth } from '../context/AuthContext.tsx';
+import { RealTimeOrderTracker } from '../components/RealTimeOrderTracker.tsx';
 
 interface OrderDetailsPageProps {
   orderId: string;
@@ -141,67 +142,11 @@ export const OrderDetailsPage: React.FC<OrderDetailsPageProps> = ({ orderId, nav
         </div>
       </div>
 
-      {/* Real-time Status Flow Tracker */}
-      <div className="bg-[#0c0f26] rounded-3xl border border-cyan-500/30 p-6 sm:p-8 shadow-xl space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <h2 className="font-heading font-black text-lg text-white flex items-center gap-2">
-              <Truck className="w-5 h-5 text-cyan-400" />
-              <span>Real-Time Shipment Progress</span>
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Courier: <strong>BlueDart Air Priority</strong> • AWB: <strong className="font-mono text-cyan-300">{awb}</strong>
-            </p>
-          </div>
-
-          <button
-            onClick={() => handleCopyAWB(awb)}
-            className="text-xs font-bold text-slate-400 hover:text-white flex items-center gap-1 self-start sm:self-auto cursor-pointer"
-          >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? 'Copied AWB!' : 'Copy AWB'}</span>
-          </button>
-        </div>
-
-        {/* Progress Stepper */}
-        <div className="relative pt-2 pb-4">
-          <div className="relative flex items-center justify-between">
-            <div className="absolute top-5 left-6 right-6 h-1 bg-slate-800 -translate-y-1/2 z-0 rounded-full"></div>
-            <div 
-              className="absolute top-5 left-6 h-1 bg-gradient-to-r from-cyan-400 via-sky-400 to-indigo-500 -translate-y-1/2 z-0 transition-all duration-700 rounded-full shadow-[0_0_10px_rgba(6,182,212,0.8)]"
-              style={{ width: `${(Math.max(0, currentStatusIndex) / (statuses.length - 1)) * 90}%` }}
-            ></div>
-
-            {statuses.map((step, idx) => {
-              const isCompleted = idx <= currentStatusIndex;
-              const isCurrent = idx === currentStatusIndex;
-
-              return (
-                <div key={step} className="relative z-10 flex flex-col items-center">
-                  <div 
-                    className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs transition-all shadow-md ${
-                      isCurrent
-                        ? 'bg-gradient-to-tr from-cyan-400 to-indigo-500 text-slate-950 ring-4 ring-cyan-500/20 scale-110 shadow-[0_0_15px_rgba(6,182,212,0.6)]'
-                        : isCompleted
-                        ? 'bg-cyan-500 text-slate-950 ring-2 ring-cyan-500/30'
-                        : 'bg-slate-900 border border-slate-800 text-slate-500'
-                    }`}
-                  >
-                    {isCompleted ? <Check className="w-4 h-4 stroke-[3]" /> : idx + 1}
-                  </div>
-                  <span className={`text-[11px] font-bold mt-2 whitespace-nowrap ${isCurrent ? 'text-cyan-300 font-black' : isCompleted ? 'text-slate-200' : 'text-slate-500'}`}>
-                    {step}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <p className="text-xs text-slate-400 text-center pt-2">
-          Real-time updates synced with warehouse operations. When the administrator advances order status, milestones update automatically.
-        </p>
-      </div>
+      {/* Real-time Order Tracking Component (Live Firestore Sync) */}
+      <RealTimeOrderTracker 
+        order={order} 
+        onOrderUpdated={(updated) => setOrder(updated)} 
+      />
 
       {/* Ordered Products Table */}
       <div className="bg-[#0c0f26] rounded-3xl border border-slate-800 p-6 sm:p-8 shadow-xs space-y-4">

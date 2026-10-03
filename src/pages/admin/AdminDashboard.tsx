@@ -9,9 +9,15 @@ import {
   RefreshCw, 
   UserCheck, 
   CheckCircle2, 
-  Filter 
+  Filter,
+  Percent,
+  Plus,
+  Sparkles,
+  X,
+  Tag,
+  AlertTriangle
 } from 'lucide-react';
-import type { AdminMetrics, UserLoginLog, SearchLog } from '../../types/index.ts';
+import type { AdminMetrics, UserLoginLog, SearchLog, OfferBanner } from '../../types/index.ts';
 import { api } from '../../services/api.ts';
 
 interface AdminDashboardProps {
@@ -23,25 +29,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setAdminTab }) =
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
   const [logins, setLogins] = useState<UserLoginLog[]>([]);
   const [searches, setSearches] = useState<SearchLog[]>([]);
+  const [offers, setOffers] = useState<OfferBanner[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [clearingLogins, setClearingLogins] = useState(false);
+  const [cleaningCatalog, setCleaningCatalog] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
+
+  // Offer Creation State
+  const [isAddingOffer, setIsAddingOffer] = useState(false);
+  const [offerTitle, setOfferTitle] = useState('');
+  const [offerSubtitle, setOfferSubtitle] = useState('');
+  const [offerBadge, setOfferBadge] = useState('SPECIAL OFFER');
+  const [offerDiscount, setOfferDiscount] = useState<string>('20');
+  const [offerCode, setOfferCode] = useState('BUYGEN20');
+  const [creatingOffer, setCreatingOffer] = useState(false);
 
   const loadData = async (isManualRefresh = false) => {
     try {
       if (isManualRefresh) setRefreshing(true);
       else setLoading(true);
 
-      const [metricsRes, loginsRes, searchesRes] = await Promise.all([
+      const [metricsRes, loginsRes, searchesRes, offersRes] = await Promise.all([
         api.getAdminMetrics().catch(() => null),
         api.getAdminLogins().catch(() => ({ logins: [] })),
-        api.getSearchLogs().catch(() => ({ searches: [] }))
+        api.getSearchLogs().catch(() => ({ searches: [] })),
+        api.getAdminOffers().catch(() => ({ offers: [] }))
       ]);
 
       if (metricsRes) setMetrics(metricsRes);
       setLogins(loginsRes.logins || []);
       setSearches(searchesRes.searches || []);
+      setOffers(offersRes.offers || []);
     } catch (err) {
       console.error('Failed to load admin dashboard data', err);
     } finally {
@@ -83,14 +102,95 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setAdminTab }) =
     }
   };
 
+  const handleResetCategories = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to reset all active categories to 0? This will unlink categories from any items.')) {
+      return;
+    }
+    try {
+      await api.clearAllCategories();
+      await loadData(true);
+    } catch (err: any) {
+      alert(err.message || 'Failed to reset categories');
+    }
+  };
+
+  const handleCleanCatalog = async () => {
+    if (!window.confirm('Are you sure you want to clean all mock data and reset the entire catalog to 0? All products and categories will be reset so you can stock authentic items fresh.')) {
+      return;
+    }
+    try {
+      setCleaningCatalog(true);
+      await api.cleanCatalog();
+      await loadData(true);
+      alert('Store catalog successfully cleaned! 0 mock items remain in the database.');
+    } catch (err: any) {
+      alert(err.message || 'Failed to clean catalog');
+    } finally {
+      setCleaningCatalog(false);
+    }
+  };
+
+  const handleCreateOffer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!offerTitle.trim()) return;
+    try {
+      setCreatingOffer(true);
+      await api.createOffer({
+        title: offerTitle.trim(),
+        subtitle: offerSubtitle.trim(),
+        badge: offerBadge.trim() || 'SPECIAL OFFER',
+        discountPercentage: offerDiscount ? Number(offerDiscount) : undefined,
+        promoCode: offerCode.trim(),
+        active: true
+      });
+      setIsAddingOffer(false);
+      setOfferTitle('');
+      setOfferSubtitle('');
+      await loadData(true);
+    } catch (err: any) {
+      alert(err.message || 'Failed to create offer');
+    } finally {
+      setCreatingOffer(false);
+    }
+  };
+
+  const handleDeleteOffer = async (id: string) => {
+    if (!window.confirm('Delete this promotional offer banner?')) return;
+    try {
+      await api.deleteOffer(id);
+      setOffers(prev => prev.filter(o => o.id !== id));
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete offer');
+    }
+  };
+
+  const handleToggleOffer = async (offer: OfferBanner) => {
+    try {
+      const updated = await api.updateOffer(offer.id, { active: !offer.active });
+      setOffers(prev => prev.map(o => o.id === offer.id ? updated.offer : o));
+    } catch (err: any) {
+      alert(err.message || 'Failed to toggle offer');
+    }
+  };
+
   const filteredSearches = searches.filter(s => 
     s.query.toLowerCase().includes(searchFilter.toLowerCase()) ||
     s.userName.toLowerCase().includes(searchFilter.toLowerCase()) ||
     s.userEmail.toLowerCase().includes(searchFilter.toLowerCase())
   );
 
-  const loggedInUsersCount = metrics?.loggedInUsersCount ?? (new Set(logins.map(l => l.email.toLowerCase())).size);
+  const [loginRoleFilter, setLoginRoleFilter] = useState<'all' | 'customer' | 'admin'>('customer');
+
+  const customerLogins = logins.filter(l => l.role === 'customer');
+  const loggedInUsersCount = metrics?.loggedInUsersCount ?? (new Set(customerLogins.map(l => l.email.toLowerCase())).size);
   const totalSearchesCount = metrics?.totalSearches || searches.length;
+
+  const displayedLogins = logins.filter(l => {
+    if (loginRoleFilter === 'customer') return l.role === 'customer';
+    if (loginRoleFilter === 'admin') return l.role === 'admin';
+    return true;
+  });
 
   return (
     <div className="space-y-8 text-white">
@@ -115,7 +215,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setAdminTab }) =
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleCleanCatalog}
+            disabled={cleaningCatalog}
+            className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 font-bold text-xs rounded-xl flex items-center gap-2 border border-rose-500/30 transition cursor-pointer disabled:opacity-50"
+            title="Clean any legacy mock products & categories to start with 0 items"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+            <span>{cleaningCatalog ? 'Cleaning...' : 'Clean All Mock Data'}</span>
+          </button>
+
           <button
             onClick={handleRefresh}
             disabled={refreshing}
@@ -153,7 +263,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setAdminTab }) =
           </p>
         </div>
 
-        {/* Active Categories */}
+        {/* Active Categories (Can be deleted or reset to 0) */}
         <div 
           onClick={() => setAdminTab('categories')}
           className="bg-[#0b0e24] p-5 rounded-3xl border border-slate-800 hover:border-cyan-500/50 transition cursor-pointer shadow-lg space-y-1.5"
@@ -166,12 +276,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setAdminTab }) =
               <Filter className="w-4 h-4" />
             </div>
           </div>
-          <h3 className="font-heading font-black text-2xl sm:text-3xl text-white">
-            {loading ? '...' : (metrics?.totalCategories ?? 0)}
-          </h3>
+          <div className="flex items-baseline justify-between">
+            <h3 className="font-heading font-black text-2xl sm:text-3xl text-white">
+              {loading ? '...' : (metrics?.totalCategories ?? 0)}
+            </h3>
+            {(metrics?.totalCategories ?? 0) > 0 && (
+              <button
+                type="button"
+                onClick={handleResetCategories}
+                className="px-2 py-0.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold cursor-pointer transition"
+                title="Reset categories to 0"
+              >
+                Reset to 0
+              </button>
+            )}
+          </div>
           <p className="text-[11px] text-cyan-400 font-bold flex items-center gap-1">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Catalog categories</span>
+            <span>{(metrics?.totalCategories ?? 0) === 0 ? '0 active categories' : 'Catalog categories'}</span>
           </p>
         </div>
 
@@ -215,8 +337,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setAdminTab }) =
           </h3>
           <p className="text-[11px] text-indigo-300 font-bold flex items-center gap-1">
             <UserCheck className="w-3.5 h-3.5" />
-            <span>{loggedInUsersCount === 0 ? '0 active logins' : `${loggedInUsersCount} authenticated user${loggedInUsersCount > 1 ? 's' : ''}`}</span>
+            <span>{loggedInUsersCount === 0 ? '0 customer logins' : `${loggedInUsersCount} customer${loggedInUsersCount > 1 ? 's' : ''} logged in`}</span>
           </p>
+          <span className="text-[10px] text-slate-500 font-semibold block">
+            Admins excluded from count
+          </span>
         </div>
 
         {/* Customer Searches Performed */}
@@ -240,6 +365,188 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setAdminTab }) =
 
       </div>
 
+      {/* SECTION 0: PROMOTIONAL OFFERS (FRONT PAGE BANNER MANAGER) */}
+      <div className="bg-[#0b0e24] rounded-3xl border border-amber-500/30 shadow-xl overflow-hidden">
+        <div className="p-6 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-amber-950/20 via-[#0b0e24] to-[#090b1c]">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center justify-center font-black">
+                <Percent className="w-4 h-4" />
+              </div>
+              <h2 className="font-heading font-black text-lg text-white">
+                Front-Page Offers & Festive Banners
+              </h2>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">
+              Active offer banners added here appear in a large, prominent display at the top of the customer front page.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsAddingOffer(!isAddingOffer)}
+            className="px-4 py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:opacity-95 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition cursor-pointer"
+          >
+            {isAddingOffer ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            <span>{isAddingOffer ? 'Cancel' : 'Add New Offer Banner'}</span>
+          </button>
+        </div>
+
+        {/* New Offer Creation Form */}
+        {isAddingOffer && (
+          <form onSubmit={handleCreateOffer} className="p-6 bg-slate-950/70 border-b border-slate-800 space-y-4">
+            <h3 className="font-heading font-black text-sm text-amber-300 uppercase tracking-wider">
+              Create Promotional Banner
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+              <div className="sm:col-span-2">
+                <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1">
+                  Offer Headline / Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. MEGA DIWALI ELECTRONICS SALE"
+                  value={offerTitle}
+                  onChange={(e) => setOfferTitle(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-bold focus:border-amber-400 focus:outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1">
+                  Badge Label
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. LIMITED TIME DEALS"
+                  value={offerBadge}
+                  onChange={(e) => setOfferBadge(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1">
+                  Discount Percentage
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="99"
+                  placeholder="e.g. 20"
+                  value={offerDiscount}
+                  onChange={(e) => setOfferDiscount(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono font-bold focus:border-amber-400 focus:outline-hidden"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1">
+                  Subtitle / Promo Description
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Massive price cuts on all pro smartphones, creator laptops, and ANC headphones."
+                  value={offerSubtitle}
+                  onChange={(e) => setOfferSubtitle(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1">
+                  Promo Coupon Code
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. BUYGEN20"
+                  value={offerCode}
+                  onChange={(e) => setOfferCode(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono focus:border-amber-400 focus:outline-hidden uppercase"
+                />
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  type="submit"
+                  disabled={creatingOffer}
+                  className="w-full py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:opacity-95 text-slate-950 font-black text-xs rounded-xl shadow-lg transition cursor-pointer"
+                >
+                  {creatingOffer ? 'Publishing...' : 'Publish Offer to Front Page'}
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+
+        {/* Existing Offers List */}
+        <div className="p-6">
+          {offers.length === 0 ? (
+            <div className="text-center py-6 text-slate-400 text-xs space-y-1">
+              <p className="font-bold text-slate-300">0 Promotional Offers Active</p>
+              <p className="text-[11px] text-slate-500">
+                Click "+ Add New Offer Banner" to create special deals that display on the homepage.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {offers.map((offer) => (
+                <div
+                  key={offer.id}
+                  className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-black uppercase">
+                        {offer.badge || 'OFFER'}
+                      </span>
+                      {offer.discountPercentage && (
+                        <span className="text-xs font-bold text-emerald-400">
+                          {offer.discountPercentage}% OFF
+                        </span>
+                      )}
+                      {offer.promoCode && (
+                        <span className="text-xs font-mono font-bold text-cyan-300 bg-slate-900 px-1.5 py-0.5 rounded">
+                          {offer.promoCode}
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="font-bold text-white text-sm">{offer.title}</h4>
+                    {offer.subtitle && (
+                      <p className="text-xs text-slate-400">{offer.subtitle}</p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleOffer(offer)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                        offer.active 
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' 
+                          : 'bg-slate-900 text-slate-500 border border-slate-800'
+                      }`}
+                    >
+                      {offer.active ? 'Active on Front Page' : 'Hidden'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteOffer(offer.id)}
+                      className="p-1.5 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                      title="Delete offer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* SECTION 1: Who Logged In (User Login Activity) */}
       <div className="bg-[#0b0e24] rounded-3xl border border-slate-800 shadow-xl overflow-hidden">
         <div className="p-6 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4 bg-[#090b1c]">
@@ -257,16 +564,50 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setAdminTab }) =
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-300 text-xs font-black border border-indigo-500/30">
-              {logins.length} Active Sessions
-            </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Role Filter Tabs */}
+            <div className="flex items-center p-1 bg-slate-950 rounded-xl border border-slate-800 text-xs">
+              <button
+                type="button"
+                onClick={() => setLoginRoleFilter('customer')}
+                className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
+                  loginRoleFilter === 'customer'
+                    ? 'bg-cyan-500 text-slate-950 shadow-xs'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Customers ({customerLogins.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setLoginRoleFilter('admin')}
+                className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
+                  loginRoleFilter === 'admin'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Admins ({logins.filter(l => l.role === 'admin').length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setLoginRoleFilter('all')}
+                className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
+                  loginRoleFilter === 'all'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                All ({logins.length})
+              </button>
+            </div>
+
             {logins.length > 0 && (
               <button
                 type="button"
                 onClick={handleClearLogins}
                 disabled={clearingLogins}
-                className="px-3 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold rounded-xl border border-rose-500/30 transition cursor-pointer flex items-center gap-1.5"
+                className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold rounded-xl border border-rose-500/30 transition cursor-pointer flex items-center gap-1.5"
                 title="Delete all login history entries"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -277,12 +618,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setAdminTab }) =
         </div>
 
         <div className="overflow-x-auto">
-          {logins.length === 0 ? (
+          {displayedLogins.length === 0 ? (
             <div className="p-12 text-center space-y-2">
               <Users className="w-10 h-10 text-slate-600 mx-auto" />
-              <h3 className="font-bold text-slate-300">No User Logins Recorded Yet</h3>
+              <h3 className="font-bold text-slate-300">
+                {loginRoleFilter === 'customer' ? 'No Store Customer Logins Yet' : 'No Logins Recorded'}
+              </h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                User logins will be recorded and displayed here as customers and administrators authenticate.
+                {loginRoleFilter === 'customer'
+                  ? 'Customer account logins will be recorded here and will automatically increment the "Users Logged In" metric.'
+                  : 'Logins will be recorded and displayed here as users authenticate.'}
               </p>
             </div>
           ) : (
@@ -297,7 +642,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setAdminTab }) =
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-medium">
-                {logins.map((entry) => {
+                {displayedLogins.map((entry) => {
                   const isAdmin = entry.role === 'admin';
                   const dateStr = new Date(entry.loginTime).toLocaleString('en-US', {
                     dateStyle: 'medium',
