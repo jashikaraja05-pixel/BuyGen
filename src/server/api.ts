@@ -115,8 +115,11 @@ apiRouter.post('/auth/login', async (req, res) => {
 apiRouter.post('/auth/google', async (req, res) => {
   try {
     const { email, name } = req.body;
-    const userEmail = email || 'jashikahack@gmail.com';
-    const userName = name || 'Jashika Hack';
+    if (!email || !email.trim()) {
+      return res.status(400).json({ error: 'Please provide your Google email address.' });
+    }
+    const userEmail = email.trim().toLowerCase();
+    const userName = name?.trim() || userEmail.split('@')[0];
 
     const user = await dbStore.loginOrCreateGoogleUser(userEmail, userName);
     const token = `${user.id}:${Buffer.from(userEmail).toString('base64')}`;
@@ -548,6 +551,15 @@ apiRouter.get('/admin/logins', requireAdmin, async (_req: AuthenticatedRequest, 
     res.json({ logins });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to fetch logins' });
+  }
+});
+
+apiRouter.delete('/admin/logins', requireAdmin, async (_req: AuthenticatedRequest, res) => {
+  try {
+    dbStore.clearLoginLogs();
+    res.json({ success: true, message: 'All login history cleared.' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to clear login history' });
   }
 });
 

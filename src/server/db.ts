@@ -80,44 +80,13 @@ class DatabaseStore {
       this.reviews.set(rev.productId, list);
     });
 
-    // Seed standard admin and customer accounts
+    // Seed standard store administrator accounts
     const adminPassHash = bcrypt.hashSync('Admin@123', 10);
-    const customerPassHash = bcrypt.hashSync('Customer@123', 10);
 
     const defaultAdmin: StoredUser = {
       id: 'admin-1',
       name: 'System Admin',
       email: 'admin@buygen.com',
-      role: 'admin',
-      createdAt: '2026-09-01T00:00:00.000Z',
-      passwordHash: adminPassHash,
-      isPreSeeded: true,
-    };
-
-    const ghpAdmin: StoredUser = {
-      id: 'admin-ghp',
-      name: 'Evaluation Admin',
-      email: 'jashikahack@gmail.com',
-      role: 'admin',
-      createdAt: '2026-09-01T00:00:00.000Z',
-      passwordHash: adminPassHash,
-      isPreSeeded: true,
-    };
-
-    const runtimeAdmin: StoredUser = {
-      id: 'admin-runtime',
-      name: 'Gayathiri Sathyamoorthy',
-      email: 'gayathirisathyamoorthy2006@gmail.com',
-      role: 'admin',
-      createdAt: '2026-09-01T00:00:00.000Z',
-      passwordHash: adminPassHash,
-      isPreSeeded: true,
-    };
-
-    const repoAdmin: StoredUser = {
-      id: 'admin-repo',
-      name: 'Jashika Raja',
-      email: 'jashikaraja05@gmail.com',
       role: 'admin',
       createdAt: '2026-09-01T00:00:00.000Z',
       passwordHash: adminPassHash,
@@ -134,33 +103,8 @@ class DatabaseStore {
       isPreSeeded: true,
     };
 
-    const phantomAdmin: StoredUser = {
-      id: 'admin-phantom',
-      name: 'Phantom Eye Admin',
-      email: 'phantomeye722@gmail.com',
-      role: 'admin',
-      createdAt: '2026-09-01T00:00:00.000Z',
-      passwordHash: adminPassHash,
-      isPreSeeded: true,
-    };
-
-    const defaultCustomer: StoredUser = {
-      id: 'cust-1',
-      name: 'Alex Johnson',
-      email: 'customer@buygen.com',
-      role: 'customer',
-      createdAt: '2026-09-05T00:00:00.000Z',
-      passwordHash: customerPassHash,
-      isPreSeeded: true,
-    };
-
     this.users.set(defaultAdmin.email.toLowerCase(), defaultAdmin);
-    this.users.set(ghpAdmin.email.toLowerCase(), ghpAdmin);
-    this.users.set(runtimeAdmin.email.toLowerCase(), runtimeAdmin);
-    this.users.set(repoAdmin.email.toLowerCase(), repoAdmin);
     this.users.set(repoAdminSuma.email.toLowerCase(), repoAdminSuma);
-    this.users.set(phantomAdmin.email.toLowerCase(), phantomAdmin);
-    this.users.set(defaultCustomer.email.toLowerCase(), defaultCustomer);
 
     // Zero mock orders and zero mock login sessions: Only authentic real logins recorded
     this.loginLogs = [];
@@ -266,6 +210,10 @@ class DatabaseStore {
 
   getLoginLogs(): UserLoginLog[] {
     return this.loginLogs;
+  }
+
+  clearLoginLogs(): void {
+    this.loginLogs = [];
   }
 
   recordSearch(query: string, user?: User | null, resultsCount: number = 0) {
@@ -1473,10 +1421,13 @@ class DatabaseStore {
       revenue: data.revenue
     }));
 
+    const loggedInUsersCount = new Set(this.loginLogs.map(l => l.email.toLowerCase())).size;
+
     return {
       totalProducts: products.length,
       totalCategories: this.categories.size,
       totalUsers: this.users.size,
+      loggedInUsersCount,
       totalOrders: orders.length,
       totalRevenue,
       lowStockCount,

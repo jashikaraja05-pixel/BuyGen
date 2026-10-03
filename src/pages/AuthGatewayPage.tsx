@@ -58,6 +58,11 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
   const [resetConfirmPass, setResetConfirmPass] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
 
+  // Customer Google account selector modal state
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
+  const [googleEmail, setGoogleEmail] = useState('');
+  const [googleName, setGoogleName] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
@@ -93,20 +98,34 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const openGoogleSignIn = () => {
+    // If the customer already typed an email into the input, prefill it
+    if (email.trim() && email.includes('@')) {
+      setGoogleEmail(email.trim());
+    }
+    setShowGoogleModal(true);
+  };
+
+  const handleGoogleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!googleEmail.trim() || !googleEmail.includes('@')) {
+      setAuthFeedback({
+        type: 'error',
+        message: 'Please enter a valid Google email address.',
+        code: 'VALIDATION_ERROR'
+      });
+      return;
+    }
+
     try {
       setGoogleLoading(true);
       clearAuthFeedback();
-      const chosenEmail = email.trim() || (portal === 'admin' ? 'admin@buygen.com' : 'jashikahack@gmail.com');
-      const chosenName = portal === 'admin' ? 'Store Administrator' : 'Google Customer';
+      const chosenEmail = googleEmail.trim().toLowerCase();
+      const chosenName = googleName.trim() || chosenEmail.split('@')[0];
       
       await loginWithGoogle(chosenEmail, chosenName);
-      
-      if (portal === 'admin') {
-        navigate('/admin');
-      } else {
-        navigate('/');
-      }
+      setShowGoogleModal(false);
+      navigate('/');
     } catch {
       // Handled in AuthContext
     } finally {
@@ -557,41 +576,46 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
                 </button>
               </form>
 
-              {/* 2. OR DIVIDER (After Email & Password) */}
-              <div className="relative flex items-center justify-center my-3">
-                <div className="w-full border-t border-slate-800"></div>
-                <span className="absolute bg-[#0b0e22] px-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                  OR
-                </span>
-              </div>
+              {/* ONLY SHOW GOOGLE LOGIN OPTION FOR CUSTOMER STORE */}
+              {!isAdminPortal && (
+                <>
+                  {/* 2. OR DIVIDER */}
+                  <div className="relative flex items-center justify-center my-3">
+                    <div className="w-full border-t border-slate-800"></div>
+                    <span className="absolute bg-[#0b0e22] px-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                      OR
+                    </span>
+                  </div>
 
-              {/* 3. SIGN IN WITH GOOGLE (Clean Option) */}
-              <button
-                type="button"
-                onClick={handleGoogleLogin}
-                disabled={googleLoading || loading}
-                className="w-full py-3 px-4 bg-white hover:bg-slate-100 text-slate-950 font-bold text-xs sm:text-sm rounded-xl shadow-lg transition flex items-center justify-center gap-3 cursor-pointer active:scale-98 transform duration-150 ring-1 ring-slate-200"
-              >
-                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.14z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.36 24 12 24z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.04 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-                  />
-                </svg>
-                <span>{googleLoading ? 'Connecting to Google...' : 'Sign in with Google'}</span>
-              </button>
+                  {/* 3. SIGN IN WITH GOOGLE (Explicit Account Selection) */}
+                  <button
+                    type="button"
+                    onClick={openGoogleSignIn}
+                    disabled={googleLoading || loading}
+                    className="w-full py-3 px-4 bg-white hover:bg-slate-100 text-slate-950 font-bold text-xs sm:text-sm rounded-xl shadow-lg transition flex items-center justify-center gap-3 cursor-pointer active:scale-98 transform duration-150 ring-1 ring-slate-200"
+                  >
+                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                      <path
+                        fill="#4285F4"
+                        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.14z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.36 24 12 24z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.04 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+                      />
+                      <path
+                        fill="#EA4335"
+                        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+                      />
+                    </svg>
+                    <span>{googleLoading ? 'Connecting...' : 'Sign in with Google'}</span>
+                  </button>
+                </>
+              )}
 
               {/* 4. CREATE ACCOUNT LINK (Below Google Sign In) */}
               <div className="text-center pt-2 border-t border-slate-800/80">
@@ -800,6 +824,81 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
               >
                 {resetLoading ? 'Updating Password...' : 'Save New Password & Sign In'}
               </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Google Account Selector Modal (Customer Store) */}
+      {showGoogleModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0b0e22] border border-cyan-500/30 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl relative">
+            <button
+              onClick={() => { setShowGoogleModal(false); }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-md">
+                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.14z"/>
+                  <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.36 24 12 24z"/>
+                  <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.04 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-heading font-bold text-base text-white">Sign in with Google</h3>
+                <p className="text-[11px] text-slate-400">Select or enter your Google account</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleGoogleSubmit} className="space-y-3.5">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Google Email Address *
+                </label>
+                <div className="relative">
+                  <input
+                    type="email"
+                    required
+                    placeholder="name@gmail.com"
+                    value={googleEmail}
+                    onChange={(e) => setGoogleEmail(e.target.value)}
+                    className="w-full pl-9 pr-3.5 py-2.5 bg-slate-950 border border-slate-800 focus:border-cyan-400 rounded-xl text-xs text-white"
+                  />
+                  <Mail className="w-4 h-4 text-cyan-400 absolute left-3 top-3" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Full Name (Optional)
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Your Name"
+                    value={googleName}
+                    onChange={(e) => setGoogleName(e.target.value)}
+                    className="w-full pl-9 pr-3.5 py-2.5 bg-slate-950 border border-slate-800 focus:border-cyan-400 rounded-xl text-xs text-white"
+                  />
+                  <User className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                </div>
+              </div>
+
+              <div className="pt-1">
+                <button
+                  type="submit"
+                  disabled={googleLoading}
+                  className="w-full py-3 bg-white hover:bg-slate-100 text-slate-950 font-black text-xs rounded-xl cursor-pointer transition shadow-lg flex items-center justify-center gap-2"
+                >
+                  <span>{googleLoading ? 'Signing in...' : 'Continue with Google Account'}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
             </form>
           </div>
         </div>

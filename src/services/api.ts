@@ -304,6 +304,10 @@ export const api = {
 
   getAdminLogins: () => request<{ logins: UserLoginLog[] }>('/admin/logins'),
 
+  clearAdminLogins: () => request<{ success: boolean; message: string }>('/admin/logins', {
+    method: 'DELETE'
+  }),
+
   logSearch: (query: string, resultsCount?: number) =>
     request<{ success: boolean }>('/search-log', {
       method: 'POST',

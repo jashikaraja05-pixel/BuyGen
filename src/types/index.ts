@@ -169,6 +169,7 @@ export interface AdminMetrics {
   totalProducts: number;
   totalCategories: number;
   totalUsers: number;
+  loggedInUsersCount?: number;
   totalOrders: number;
   totalRevenue: number;
   lowStockCount: number;

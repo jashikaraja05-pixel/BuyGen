@@ -88,31 +88,23 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
             </h1>
 
             <p className="text-sm sm:text-base text-slate-300 max-w-xl leading-relaxed font-normal">
-              Explore flagships, gaming laptops, audiophile sound, and 4K displays. Powered by our interactive <strong className="text-white">BUYGEN AI Smart Tech Advisor</strong> to match your exact performance and budget requirements.
+              Explore authentic flagships, laptops, headphones, monitors, and smart tech with live warehouse stock tracking and genuine manufacturer warranty.
             </p>
 
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <button
                 onClick={() => navigate('/products')}
-                className="px-5 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-indigo-600/30 hover:shadow-indigo-600/50 transition flex items-center gap-2 cursor-pointer active:scale-95"
+                className="px-6 py-3.5 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-slate-950 font-black text-sm rounded-xl shadow-lg shadow-cyan-500/25 transition flex items-center gap-2 cursor-pointer active:scale-95"
               >
-                <span>⚡ All Electronics</span>
+                <span>Browse All Products</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
               <button
                 onClick={() => navigate('/categories/smartphones')}
-                className="px-5 py-3.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-indigo-300 font-bold text-sm rounded-xl transition flex items-center gap-2 cursor-pointer active:scale-95"
+                className="px-5 py-3.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-bold text-sm rounded-xl transition flex items-center gap-2 cursor-pointer active:scale-95"
               >
                 <span>📱 Smartphones</span>
-              </button>
-
-              <button
-                onClick={() => navigate('/advisor')}
-                className="px-5 py-3.5 bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-cyan-300 font-bold text-sm rounded-xl transition flex items-center gap-2 cursor-pointer active:scale-95"
-              >
-                <Sparkles className="w-4 h-4 text-cyan-400" />
-                <span>AI Advisor</span>
               </button>
             </div>
 
@@ -206,54 +198,7 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
         </div>
       </section>
 
-      {/* 2. Interactive AI Tech Advisor Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-r from-indigo-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-10 border border-indigo-800/60 shadow-xl relative overflow-hidden">
-          <div className="absolute right-0 top-0 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="max-w-xl">
-              <div className="flex items-center gap-2 text-cyan-300 text-xs font-bold uppercase tracking-wider mb-2">
-                <Sparkles className="w-4 h-4" />
-                <span>BUYGEN Smart Tech Advisor</span>
-              </div>
-              <h2 className="font-heading font-extrabold text-2xl sm:text-3xl text-white">
-                Find the Perfect Tech in Plain English.
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-300 mt-2 leading-relaxed">
-                Tell us your budget, use case, or desired specifications. Our AI extracts requirements and matches directly against real in-stock products in our database.
-              </p>
-            </div>
-
-            <button
-              onClick={() => navigate('/advisor')}
-              className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow-lg shadow-cyan-500/20 transition flex items-center gap-2 shrink-0 cursor-pointer active:scale-95"
-            >
-              <span>Launch Tech Advisor</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Quick Prompt Chips */}
-          <div className="relative z-10 mt-6 pt-6 border-t border-indigo-800/50">
-            <p className="text-xs text-slate-400 font-medium mb-3">Try asking the advisor:</p>
-            <div className="flex flex-wrap gap-2">
-              {promptChips.map((chip, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => navigate(`/advisor?q=${encodeURIComponent(chip)}`)}
-                  className="px-3 py-1.5 rounded-full text-xs bg-slate-800/80 hover:bg-indigo-900/60 border border-indigo-700/60 text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Sparkles className="w-3 h-3 text-cyan-400" />
-                  <span>"{chip}"</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. Category Grid */}
+      {/* 2. Category Grid */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-8">
           <div>

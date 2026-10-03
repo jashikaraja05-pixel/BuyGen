@@ -7,7 +7,6 @@ import { CompareProvider } from './context/CompareContext.tsx';
 import { Navbar } from './components/Navbar.tsx';
 import { Footer } from './components/Footer.tsx';
 import { Toast } from './components/Toast.tsx';
-import { FloatingDock } from './components/FloatingDock.tsx';
 import { SplashScreen } from './components/SplashScreen.tsx';
 
 // Customer Pages
@@ -213,7 +212,6 @@ function AppInner() {
         {pageContent}
       </main>
       <Footer navigate={navigate} />
-      <FloatingDock currentPath={currentPath} navigate={navigate} />
       <Toast />
     </div>
   );

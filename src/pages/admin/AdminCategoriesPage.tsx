@@ -109,21 +109,21 @@ export const AdminCategoriesPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 text-white">
       
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-heading font-black text-2xl sm:text-3xl text-slate-900">
+          <h1 className="font-heading font-black text-2xl sm:text-3xl text-white">
             Category Management
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">
             Configure electronics categories, navigation slugs, and subcategories.
           </p>
         </div>
 
         <button
           onClick={openCreateModal}
-          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-md cursor-pointer"
+          className="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:opacity-95 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-amber-500/20 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>New Category</span>
@@ -131,23 +131,23 @@ export const AdminCategoriesPage: React.FC = () => {
       </div>
 
       {error && (
-        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+        <div className="p-4 bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs rounded-xl flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {/* Categories Grid or Zero State */}
       {categories.length === 0 && !loading ? (
-        <div className="p-12 bg-white rounded-3xl border border-slate-200 text-center space-y-3 shadow-xs">
-          <FolderTree className="w-12 h-12 text-slate-300 mx-auto" />
-          <h3 className="font-heading font-black text-lg text-slate-800">0 Categories in Database</h3>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            All mock categories have been removed. Click "Add Category" above to organize products in your store.
+        <div className="p-12 bg-[#0b0e24] rounded-3xl border border-slate-800 text-center space-y-3 shadow-xl">
+          <FolderTree className="w-12 h-12 text-slate-600 mx-auto" />
+          <h3 className="font-heading font-black text-lg text-white">0 Categories in Database</h3>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            Click "New Category" above to organize products in your store.
           </p>
           <button
             onClick={openCreateModal}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer"
+            className="px-4 py-2 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-md transition cursor-pointer"
           >
             Create First Category
           </button>
@@ -155,32 +155,34 @@ export const AdminCategoriesPage: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {categories.map((cat) => (
-            <div key={cat.id} className="p-6 bg-white rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-4">
+            <div key={cat.id} className="p-6 bg-[#0b0e24] rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between space-y-4 hover:border-slate-700 transition">
               <div>
                 <div className="flex items-start justify-between">
-                  <span className="px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold uppercase tracking-wider">
+                  <span className="px-2.5 py-0.5 rounded-md bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold uppercase tracking-wider">
                     /{cat.slug}
                   </span>
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => openEditModal(cat)}
-                      className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-slate-50 cursor-pointer"
+                      className="p-1.5 text-slate-400 hover:text-cyan-400 rounded-lg hover:bg-slate-900 cursor-pointer"
+                      title="Edit Category"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setCategoryToDelete(cat)}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-50 cursor-pointer"
+                      className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-slate-900 cursor-pointer"
+                      title="Delete Category"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
-                <h3 className="font-heading font-bold text-lg text-slate-900 mt-2">
+                <h3 className="font-heading font-black text-lg text-white mt-2">
                   {cat.name}
                 </h3>
-                <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                <p className="text-xs text-slate-400 mt-1 line-clamp-2">
                   {cat.description}
                 </p>
 
@@ -188,7 +190,7 @@ export const AdminCategoriesPage: React.FC = () => {
                 {cat.subcategories && cat.subcategories.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-3">
                     {cat.subcategories.map((sub, i) => (
-                      <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold rounded-md">
+                      <span key={i} className="px-2 py-0.5 bg-slate-900 border border-slate-800 text-slate-300 text-[10px] font-semibold rounded-md">
                         {sub}
                       </span>
                     ))}
@@ -196,31 +198,31 @@ export const AdminCategoriesPage: React.FC = () => {
                 )}
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-600">
+              <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs font-semibold text-slate-400">
                 <span>Active Products:</span>
-                <span className="font-bold text-slate-900">{cat.productCount || 0}</span>
+                <span className="font-bold text-cyan-300">{cat.productCount || 0}</span>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Modal */}
+      {/* Edit / Create Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b">
-              <h3 className="font-heading font-black text-xl text-slate-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="bg-[#0b0e24] border border-slate-800 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl space-y-4 text-white">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h3 className="font-heading font-black text-xl text-white">
                 {editingCategory ? 'Edit Category' : 'Create Category'}
               </h3>
-              <button onClick={() => setIsModalOpen(false)}>
-                <X className="w-5 h-5 text-slate-400" />
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-4 text-xs sm:text-sm">
+            <form onSubmit={handleSave} className="space-y-4 text-xs">
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">
+                <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5">
                   Category Name *
                 </label>
                 <input
@@ -228,62 +230,64 @@ export const AdminCategoriesPage: React.FC = () => {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border rounded-xl text-xs"
+                  placeholder="e.g. Gaming Laptops"
+                  className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-hidden focus:border-amber-400 font-medium"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">
-                  URL Slug
+                <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                  URL Slug (Optional)
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. smart-home"
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border rounded-xl text-xs font-mono"
+                  placeholder="auto-generated from name"
+                  className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-hidden focus:border-amber-400 font-mono"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">
+                <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5">
                   Description
                 </label>
                 <textarea
-                  rows={2}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border rounded-xl text-xs"
+                  rows={2}
+                  placeholder="Brief description for category..."
+                  className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-hidden focus:border-amber-400"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">
+                <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5">
                   Subcategories (comma separated)
                 </label>
                 <input
                   type="text"
-                  placeholder="Flagships, Foldables, Budget"
                   value={subcategoriesStr}
                   onChange={(e) => setSubcategoriesStr(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border rounded-xl text-xs"
+                  placeholder="RTX 4090, OLED, Thin & Light"
+                  className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-hidden focus:border-amber-400"
                 />
               </div>
 
-              <div className="pt-3 border-t flex justify-end gap-2">
+              <div className="pt-2 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border rounded-xl text-xs font-bold text-slate-600"
+                  className="px-4 py-2 border border-slate-700 text-slate-300 rounded-xl font-bold hover:bg-slate-900 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-6 py-2 bg-indigo-600 text-white font-bold text-xs rounded-xl"
+                  className="px-5 py-2 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black rounded-xl shadow-md cursor-pointer"
                 >
-                  {saving ? 'Saving...' : 'Save'}
+                  {saving ? 'Saving...' : 'Save Category'}
                 </button>
               </div>
             </form>
@@ -291,26 +295,26 @@ export const AdminCategoriesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Delete Confirmation */}
+      {/* Delete Confirmation Modal */}
       {categoryToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4">
-            <h3 className="font-heading font-black text-center text-lg text-slate-900">
-              Delete {categoryToDelete.name}?
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="bg-[#0b0e24] border border-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-white">
+            <h3 className="font-heading font-black text-lg text-white">
+              Delete "{categoryToDelete.name}"?
             </h3>
-            <p className="text-xs text-slate-500 text-center leading-relaxed">
-              Are you sure? Categories with active products cannot be deleted unless the products are first reassigned or deleted.
+            <p className="text-xs text-slate-400">
+              Are you sure you want to remove this category? Products currently assigned to this category will need re-categorization.
             </p>
-            <div className="flex gap-2 pt-2">
+            <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 onClick={() => setCategoryToDelete(null)}
-                className="flex-1 py-2 text-xs font-bold border rounded-xl"
+                className="px-4 py-2 border border-slate-700 text-slate-300 rounded-xl font-bold text-xs hover:bg-slate-900 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
-                className="flex-1 py-2 text-xs font-bold bg-rose-600 text-white rounded-xl"
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-black text-xs rounded-xl cursor-pointer"
               >
                 Delete
               </button>
