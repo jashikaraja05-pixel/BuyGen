@@ -96,6 +96,15 @@ class DatabaseStore {
       passwordHash: adminPassHash,
     };
 
+    const phantomAdmin: StoredUser = {
+      id: 'admin-phantom',
+      name: 'Phantom Eye Admin',
+      email: 'phantomeye722@gmail.com',
+      role: 'admin',
+      createdAt: '2026-09-01T00:00:00.000Z',
+      passwordHash: adminPassHash,
+    };
+
     const defaultCustomer: StoredUser = {
       id: 'cust-1',
       name: 'Alex Johnson',
@@ -109,6 +118,7 @@ class DatabaseStore {
     this.users.set(ghpAdmin.email.toLowerCase(), ghpAdmin);
     this.users.set(runtimeAdmin.email.toLowerCase(), runtimeAdmin);
     this.users.set(repoAdmin.email.toLowerCase(), repoAdmin);
+    this.users.set(phantomAdmin.email.toLowerCase(), phantomAdmin);
     this.users.set(defaultCustomer.email.toLowerCase(), defaultCustomer);
 
     // Seed realistic completed & in-transit orders for rich initial admin dashboard stats
@@ -269,7 +279,8 @@ class DatabaseStore {
       normalizedEmail.includes('admin') || 
       normalizedEmail === 'gayathirisathyamoorthy2006@gmail.com' ||
       normalizedEmail === 'jashikaraja05@gmail.com' ||
-      normalizedEmail === 'jashikahack@gmail.com'
+      normalizedEmail === 'jashikahack@gmail.com' ||
+      normalizedEmail === 'phantomeye722@gmail.com'
     ) ? 'admin' : 'customer';
     const newUser: StoredUser = {
       id,
