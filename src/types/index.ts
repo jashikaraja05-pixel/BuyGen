@@ -49,7 +49,7 @@ export interface Category {
   slug: string;
   parentId?: string;
   description: string;
-  icon: string;
+  icon?: string;
   subcategories: string[];
   productCount?: number;
 }

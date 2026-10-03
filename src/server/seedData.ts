@@ -6,6 +6,7 @@ export const initialCategories: Category[] = [
     name: 'Smartphones',
     slug: 'smartphones',
     description: 'Flagship & high-performance smartphones with 5G, OLED displays, and pro-grade camera systems.',
+    icon: 'Smartphone',
     subcategories: ['Flagship Phones', 'Camera Phones', 'Foldable Phones', 'Budget Flagships'],
     productCount: 4
   },
@@ -14,6 +15,7 @@ export const initialCategories: Category[] = [
     name: 'Laptops',
     slug: 'laptops',
     description: 'Pro creator notebooks, ultrabooks, and high-refresh gaming laptops.',
+    icon: 'Laptop',
     subcategories: ['Ultrabooks', 'Creator Laptops', 'Gaming Laptops', 'Business Notebooks'],
     productCount: 4
   },
@@ -22,6 +24,7 @@ export const initialCategories: Category[] = [
     name: 'Headphones & ANC',
     slug: 'headphones-earbuds',
     description: 'Audiophile grade over-ear noise cancelling headphones and low-latency TWS earbuds.',
+    icon: 'Headphones',
     subcategories: ['Wireless Over-Ear', 'True Wireless Earbuds', 'Studio Monitors', 'Gaming Headsets'],
     productCount: 4
   },
@@ -30,6 +33,7 @@ export const initialCategories: Category[] = [
     name: 'Gaming Monitors',
     slug: 'monitors',
     description: '4K UHD, OLED gaming displays, ultra-wide curved productivity monitors.',
+    icon: 'Monitor',
     subcategories: ['4K OLED Displays', '240Hz Gaming Monitors', 'Ultrawide Curved', 'Color Accurate Studio'],
     productCount: 3
   },
@@ -38,6 +42,7 @@ export const initialCategories: Category[] = [
     name: 'Keyboards & Peripherals',
     slug: 'keyboards-mouse',
     description: 'Custom mechanical keyboards, wireless precision mice, and desk accessories.',
+    icon: 'Keyboard',
     subcategories: ['Mechanical Keyboards', 'Wireless Mice', 'Desk Mats', 'USB Docks'],
     productCount: 3
   },
@@ -46,6 +51,7 @@ export const initialCategories: Category[] = [
     name: 'Smartwatches',
     slug: 'smartwatches',
     description: 'Cellular smartwatches, titanium fitness trackers, and advanced health monitors.',
+    icon: 'Watch',
     subcategories: ['Cellular Smartwatches', 'Sports & Fitness GPS', 'Titanium Luxury Wear'],
     productCount: 2
   }
