@@ -189,7 +189,8 @@ function AppInner() {
     const orderId = pathPart.replace('/order-success/', '');
     pageContent = <OrderSuccessPage orderId={orderId} navigate={navigate} />;
   } else if (pathPart === '/orders') {
-    pageContent = <OrdersPage navigate={navigate} />;
+    const trackParam = searchParams.get('track') || searchParams.get('id') || undefined;
+    pageContent = <OrdersPage initialTrackingId={trackParam} navigate={navigate} />;
   } else if (pathPart.startsWith('/orders/')) {
     const orderId = pathPart.replace('/orders/', '');
     pageContent = <OrderDetailsPage orderId={orderId} navigate={navigate} />;
