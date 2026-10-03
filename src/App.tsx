@@ -27,12 +27,14 @@ import { LoginPage } from './pages/LoginPage.tsx';
 import { RegisterPage } from './pages/RegisterPage.tsx';
 import { AdvisorPage } from './pages/AdvisorPage.tsx';
 import { ComparePage } from './pages/ComparePage.tsx';
+import { OrderTrackingPage } from './pages/OrderTrackingPage.tsx';
 
 // Admin Pages
 import { AdminLayout } from './pages/admin/AdminLayout.tsx';
 import { AdminDashboard } from './pages/admin/AdminDashboard.tsx';
 import { AdminProductsPage } from './pages/admin/AdminProductsPage.tsx';
 import { AdminCategoriesPage } from './pages/admin/AdminCategoriesPage.tsx';
+import { AdminOffersPage } from './pages/admin/AdminOffersPage.tsx';
 import { AdminOrdersPage } from './pages/admin/AdminOrdersPage.tsx';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage.tsx';
 import { AdminPaymentsPage } from './pages/admin/AdminPaymentsPage.tsx';
@@ -47,7 +49,7 @@ function AppInner() {
     return window.location.pathname + window.location.search || '/';
   });
 
-  const [adminTab, setAdminTab] = useState<'dashboard' | 'products' | 'categories' | 'orders' | 'users' | 'payments'>('dashboard');
+  const [adminTab, setAdminTab] = useState<'dashboard' | 'products' | 'categories' | 'offers' | 'orders' | 'users' | 'payments'>('dashboard');
 
   useEffect(() => {
     const handlePopState = () => {
@@ -147,6 +149,7 @@ function AppInner() {
         {adminTab === 'dashboard' && <AdminDashboard setAdminTab={setAdminTab} navigate={navigate} />}
         {adminTab === 'products' && <AdminProductsPage />}
         {adminTab === 'categories' && <AdminCategoriesPage />}
+        {adminTab === 'offers' && <AdminOffersPage />}
         {adminTab === 'orders' && <AdminOrdersPage />}
         {adminTab === 'payments' && <AdminPaymentsPage />}
         {adminTab === 'users' && <AdminUsersPage />}

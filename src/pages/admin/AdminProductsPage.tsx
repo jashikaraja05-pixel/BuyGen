@@ -69,6 +69,18 @@ export const AdminProductsPage: React.FC = () => {
   const [description, setDescription] = useState('');
   const [imagesList, setImagesList] = useState<string[]>([]);
   const [customImageUrl, setCustomImageUrl] = useState('');
+  
+  // Extra Brands / Series variants stocked under the same category
+  interface ExtraBrandItem {
+    id: string;
+    brand: string;
+    name: string;
+    subcategory: string;
+    stock: number;
+    price: number;
+    originalPrice: number;
+  }
+  const [extraBrands, setExtraBrands] = useState<ExtraBrandItem[]>([]);
   const [specs, setSpecs] = useState<{ key: string; value: string }[]>([
     { key: 'Processor', value: '' },
     { key: 'RAM', value: '' },
@@ -136,12 +148,14 @@ export const AdminProductsPage: React.FC = () => {
     ]);
     setBulkSpecsText('');
     setShowBulkSpecs(false);
+    setExtraBrands([]);
     setFormError(null);
     setIsModalOpen(true);
   };
 
   const openEditModal = (product: Product) => {
     setEditingProduct(product);
+    setExtraBrands([]);
     setName(product.name);
     setBrand(product.brand);
     setCategoryMode('select');
@@ -230,22 +244,22 @@ export const AdminProductsPage: React.FC = () => {
         setFormError('Please enter a Category Name.');
         return;
       }
+      targetCatName = customCategoryName.trim();
       try {
         const res = await api.createCategory({
           name: customCategoryName.trim(),
           slug: customCategoryName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-          description: 'Store category',
+          description: `Consumer electronics under ${customCategoryName.trim()}`,
           icon: 'Cpu'
         });
         targetCatId = res.category.id;
         targetCatName = res.category.name;
         setCategoryId(res.category.id);
-        // Refresh categories list
         const catRes = await api.getCategories();
         setCategories(catRes.categories || []);
-      } catch (err: any) {
-        setFormError('Failed to create category: ' + (err.message || 'Error'));
-        return;
+      } catch (catErr: any) {
+        // Fallback: createProduct backend will auto-create category from targetCatName
+        console.warn('Category creation API fallback:', catErr?.message);
       }
     } else {
       const found = categories.find(c => c.id === targetCatId);
@@ -258,10 +272,6 @@ export const AdminProductsPage: React.FC = () => {
     }
     if (!brand.trim()) {
       setFormError('Brand is required.');
-      return;
-    }
-    if (!targetCatId) {
-      setFormError('Category is required. Please select or type a category.');
       return;
     }
     if (price <= 0) {
@@ -284,7 +294,6 @@ export const AdminProductsPage: React.FC = () => {
     // Images
     const finalImages = [...imagesList];
     if (finalImages.length === 0) {
-      // Default fallback electronics image if user didn't attach any photo
       finalImages.push('https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop');
     }
 
@@ -323,6 +332,26 @@ export const AdminProductsPage: React.FC = () => {
         await api.updateProduct(editingProduct.id, payload);
       } else {
         await api.createProduct(payload);
+
+        // Also stock any extra brand variants added under this category
+        for (const eb of extraBrands) {
+          if (eb.brand.trim() && eb.name.trim()) {
+            const ebPrice = eb.price > 0 ? eb.price : price;
+            const ebOrig = eb.originalPrice > 0 ? eb.originalPrice : (originalPrice > 0 ? originalPrice : ebPrice);
+            const ebDiscount = ebOrig > ebPrice ? Math.round(((ebOrig - ebPrice) / ebOrig) * 100) : calculatedDiscount;
+            await api.createProduct({
+              ...payload,
+              brand: eb.brand.trim(),
+              name: eb.name.trim(),
+              subcategory: eb.subcategory.trim() || subcategory.trim() || undefined,
+              price: ebPrice,
+              originalPrice: ebOrig,
+              discount: ebDiscount,
+              stock: eb.stock >= 0 ? eb.stock : stock,
+              description: `${eb.brand.trim()} ${eb.name.trim()} consumer electronics device with verified warranty.`
+            });
+          }
+        }
       }
 
       setIsModalOpen(false);
@@ -917,57 +946,225 @@ export const AdminProductsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* STEP 2: PRODUCT IDENTITY & BRAND */}
+              {/* STEP 2: PRODUCT IDENTITY & BRAND (WITH MULTI-BRAND STOCKING SUPPORT) */}
               <div className="p-4 sm:p-5 bg-slate-950/80 rounded-2xl border border-slate-800/90 space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
-                  <span className="w-6 h-6 rounded-lg bg-cyan-500/20 text-cyan-300 font-bold flex items-center justify-center text-xs">2</span>
-                  <h4 className="font-heading font-black text-sm uppercase tracking-wider text-white">
-                    Product Title & Brand
-                  </h4>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg bg-cyan-500/20 text-cyan-300 font-bold flex items-center justify-center text-xs">2</span>
+                    <div>
+                      <h4 className="font-heading font-black text-sm uppercase tracking-wider text-white">
+                        Product Title & Brand (Brand Series Stocking)
+                      </h4>
+                      <p className="text-[11px] text-slate-400">
+                        Specify model, brand title, and add additional brand variants under this category
+                      </p>
+                    </div>
+                  </div>
+
+                  {!editingProduct && (
+                    <button
+                      type="button"
+                      onClick={() => setExtraBrands(prev => [
+                        ...prev, 
+                        { 
+                          id: 'eb-' + Date.now() + Math.random().toString(36).slice(2, 5), 
+                          brand: '', 
+                          name: '', 
+                          subcategory: subcategory || '', 
+                          stock: stock > 0 ? stock : 10, 
+                          price: price > 0 ? price : 0, 
+                          originalPrice: originalPrice > 0 ? originalPrice : 0 
+                        }
+                      ])}
+                      className="px-3 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black rounded-xl text-xs transition cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95 shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ Add Another Brand / Series</span>
+                    </button>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                      Product Title *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Galaxy S24 Ultra 5G or MacBook Pro 16 M3 Max"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden font-medium"
-                    />
-                  </div>
+                {/* Primary Brand & Product */}
+                <div className="p-3.5 bg-slate-900/60 rounded-xl border border-slate-800 space-y-3">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400 block">
+                    Primary Brand & Model
+                  </span>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                      Brand *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Samsung, Apple, Sony, Dell, ASUS"
-                      value={brand}
-                      onChange={(e) => setBrand(e.target.value)}
-                      className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden font-medium"
-                    />
-                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+                        Brand *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Apple, Samsung, Sony, ASUS"
+                        value={brand}
+                        onChange={(e) => setBrand(e.target.value)}
+                        className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden font-medium"
+                      />
+                    </div>
 
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                      Subcategory / Series (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Flagship 5G, Creator Edition, Over-Ear Wireless ANC, 4K Gaming"
-                      value={subcategory}
-                      onChange={(e) => setSubcategory(e.target.value)}
-                      className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden"
-                    />
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+                        Product Title / Model *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. iPhone 16 Pro Max 256GB"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden font-medium"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+                        Subcategory / Series (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. iPhone 16 Series, Galaxy S24 Series, M3 Pro Max Series"
+                        value={subcategory}
+                        onChange={(e) => setSubcategory(e.target.value)}
+                        className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden"
+                      />
+                    </div>
                   </div>
                 </div>
+
+                {/* Dynamic Extra Brands / Series Variants Added by User */}
+                {extraBrands.length > 0 && (
+                  <div className="space-y-3 pt-2">
+                    <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Additional Brands to Stock Under This Category:</span>
+                    </span>
+
+                    {extraBrands.map((eb, index) => (
+                      <div key={eb.id} className="p-4 bg-slate-900/90 rounded-2xl border border-amber-500/30 space-y-3 relative group">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
+                            Brand #{index + 2} Entry
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setExtraBrands(prev => prev.filter(item => item.id !== eb.id))}
+                            className="p-1 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition cursor-pointer"
+                            title="Remove this brand variant"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                              Brand Name *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. Samsung, OnePlus, Google"
+                              value={eb.brand}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setExtraBrands(prev => prev.map(item => item.id === eb.id ? { ...item, brand: val } : item));
+                              }}
+                              className="w-full p-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:border-amber-400 text-xs"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                              Product Title / Model *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. Galaxy S24 Ultra 5G"
+                              value={eb.name}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setExtraBrands(prev => prev.map(item => item.id === eb.id ? { ...item, name: val } : item));
+                              }}
+                              className="w-full p-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:border-amber-400 text-xs"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                              Warehouse Stock *
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              required
+                              placeholder="e.g. 15"
+                              value={eb.stock}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                setExtraBrands(prev => prev.map(item => item.id === eb.id ? { ...item, stock: val } : item));
+                              }}
+                              className="w-full p-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:border-amber-400 text-xs font-mono font-bold"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                              Series / Subcategory
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. S24 Series"
+                              value={eb.subcategory}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setExtraBrands(prev => prev.map(item => item.id === eb.id ? { ...item, subcategory: val } : item));
+                              }}
+                              className="w-full p-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:border-amber-400 text-xs"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                              Selling Price (₹)
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="e.g. 129999"
+                              value={eb.price || ''}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                setExtraBrands(prev => prev.map(item => item.id === eb.id ? { ...item, price: val } : item));
+                              }}
+                              className="w-full p-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:border-amber-400 text-xs font-mono"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                              MRP Original Price (₹)
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="e.g. 139999"
+                              value={eb.originalPrice || ''}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                setExtraBrands(prev => prev.map(item => item.id === eb.id ? { ...item, originalPrice: val } : item));
+                              }}
+                              className="w-full p-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:border-amber-400 text-xs font-mono"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* STEP 3: DEDICATED SPECIFICATION COLUMN (FULL SECTION) */}

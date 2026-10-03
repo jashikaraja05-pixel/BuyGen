@@ -379,23 +379,41 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ navigate }) => {
                                 <h4 className="font-heading font-black text-lg text-white">
                                   ₹{total.toLocaleString('en-IN')}
                                 </h4>
-                                <div className="flex items-center justify-center sm:justify-start gap-2">
-                                  <span className="text-xs text-slate-400">Store UPI:</span>
-                                  <span className="font-mono text-xs font-bold text-cyan-300 bg-slate-900 px-2 py-1 rounded-md border border-slate-800">
-                                    {storeUpi}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); handleCopyUpi(storeUpi); }}
-                                    className="p-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
-                                    title="Copy UPI ID"
-                                  >
-                                    {copiedUpi ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                                  </button>
+                                
+                                <div className="space-y-1.5">
+                                  <div className="flex items-center justify-center sm:justify-start gap-2">
+                                    <span className="text-xs text-slate-400">Pay to UPI ID:</span>
+                                    <span className="font-mono text-xs font-bold text-cyan-300 bg-slate-900 px-2 py-1 rounded-md border border-slate-800">
+                                      {storeUpi}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); handleCopyUpi(storeUpi); }}
+                                      className="p-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+                                      title="Copy UPI ID"
+                                    >
+                                      {copiedUpi ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                    </button>
+                                  </div>
+
+                                  <div className="flex items-center justify-center sm:justify-start gap-2">
+                                    <span className="text-xs text-slate-400">GPay / PhonePe Mobile:</span>
+                                    <span className="font-mono text-xs font-bold text-amber-300 bg-slate-900 px-2 py-1 rounded-md border border-slate-800">
+                                      +91 98765 43210
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); handleCopyUpi('+919876543210'); }}
+                                      className="p-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+                                      title="Copy Mobile Number"
+                                    >
+                                      <Copy className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
                                 </div>
 
                                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                                  {method.instructions || 'Scan the QR code above or pay to the UPI ID. Once verified, click Place Order to confirm.'}
+                                  {method.instructions || 'Scan the QR code above or pay directly to the Mobile Number or UPI ID via GPay, PhonePe, Paytm, or BHIM. Enter your reference number below and click Place Order to confirm.'}
                                 </p>
 
                                 <div>

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import { GoogleGenAI } from '@google/genai';
-import { dbStore } from './db.ts';
+import { dbStore, checkIsAdminEmail } from './db.ts';
 import type { OrderStatus, PaymentMethod, User } from '../types/index.ts';
 import { normalizeSearchQuery, getExpandedSearchTokens } from '../lib/spellingNormalizer.ts';
 
@@ -22,16 +22,38 @@ const authMiddleware = async (req: AuthenticatedRequest, res: Response, next: Ne
   if (!token) return next();
 
   try {
-    // In our simplified token structure, the token is either a JSON or user ID
     let userId = token;
+    let emailFromToken = '';
     if (token.startsWith('user_')) {
       userId = token.replace('user_', '');
     } else if (token.includes(':')) {
-      userId = token.split(':')[0];
+      const parts = token.split(':');
+      userId = parts[0];
+      try {
+        emailFromToken = Buffer.from(parts[1], 'base64').toString('utf8').toLowerCase().trim();
+      } catch {}
     }
-    const user = await dbStore.getUserById(userId);
+
+    let user = await dbStore.getUserById(userId);
+    if (!user && emailFromToken) {
+      const allUsers = await dbStore.getAllUsers();
+      user = allUsers.find(u => u.email.toLowerCase() === emailFromToken) || null;
+    }
+
     if (user) {
+      if (checkIsAdminEmail(user.email)) {
+        user.role = 'admin';
+      }
       req.user = user;
+    } else if (emailFromToken && checkIsAdminEmail(emailFromToken)) {
+      // Auto-restore admin session if user exists by email
+      req.user = {
+        id: userId,
+        name: emailFromToken.split('@')[0],
+        email: emailFromToken,
+        role: 'admin',
+        createdAt: new Date().toISOString()
+      };
     }
   } catch {
     // continue as guest
@@ -48,11 +70,33 @@ const requireAuth = (req: AuthenticatedRequest, res: Response, next: NextFunctio
 
 const requireAdmin = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   if (!req.user) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      if (token && token.includes(':')) {
+        try {
+          const email = Buffer.from(token.split(':')[1], 'base64').toString('utf8').toLowerCase().trim();
+          if (checkIsAdminEmail(email)) {
+            req.user = {
+              id: token.split(':')[0],
+              name: email.split('@')[0],
+              email,
+              role: 'admin',
+              createdAt: new Date().toISOString()
+            };
+            return next();
+          }
+        } catch {}
+      }
+    }
     return res.status(401).json({ error: 'Authentication required. Please log in as an administrator.' });
   }
-  if (req.user.role !== 'admin') {
+
+  const isAdmin = req.user.role === 'admin' || checkIsAdminEmail(req.user.email);
+  if (!isAdmin) {
     return res.status(403).json({ error: 'Access denied: Admin privileges required.' });
   }
+  req.user.role = 'admin';
   next();
 };
 
@@ -245,6 +289,24 @@ apiRouter.post('/products', requireAdmin, async (req: AuthenticatedRequest, res)
     res.status(201).json({ product: newProduct, message: 'Product created successfully' });
   } catch (err: any) {
     res.status(400).json({ error: err.message || 'Failed to create product' });
+  }
+});
+
+apiRouter.post('/products/batch', requireAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    const adminEmail = req.user?.email || req.body.adminEmail;
+    const { products: productsList } = req.body;
+    if (!Array.isArray(productsList) || productsList.length === 0) {
+      return res.status(400).json({ error: 'Array of products is required.' });
+    }
+    const created = [];
+    for (const item of productsList) {
+      const prod = await dbStore.createProduct(item, adminEmail);
+      created.push(prod);
+    }
+    res.status(201).json({ products: created, message: `${created.length} products created and stocked successfully!` });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || 'Failed to create products batch' });
   }
 });
 

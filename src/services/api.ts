@@ -157,6 +157,12 @@ export const api = {
       body: JSON.stringify(data)
     }),
 
+  createProductsBatch: (products: Partial<Product>[]) =>
+    request<{ products: Product[]; message: string }>('/products/batch', {
+      method: 'POST',
+      body: JSON.stringify({ products })
+    }),
+
   updateProduct: (id: string, data: Partial<Product>) =>
     request<{ product: Product; message: string }>(`/products/${id}`, {
       method: 'PUT',

@@ -11,13 +11,14 @@ import {
   Store,
   Lock,
   Mail,
-  AlertCircle
+  AlertCircle,
+  Tag
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 
 interface AdminLayoutProps {
-  currentAdminTab: 'dashboard' | 'products' | 'categories' | 'orders' | 'users' | 'payments';
-  setAdminTab: (tab: 'dashboard' | 'products' | 'categories' | 'orders' | 'users' | 'payments') => void;
+  currentAdminTab: 'dashboard' | 'products' | 'categories' | 'offers' | 'orders' | 'users' | 'payments';
+  setAdminTab: (tab: 'dashboard' | 'products' | 'categories' | 'offers' | 'orders' | 'users' | 'payments') => void;
   navigate: (path: string) => void;
   children: React.ReactNode;
 }
@@ -161,7 +162,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'products', label: 'Products', icon: Package },
+    { id: 'products', label: 'Products & Inventory', icon: Package },
+    { id: 'categories', label: 'Categories', icon: FolderTree },
+    { id: 'offers', label: 'Offers & Banners', icon: Tag },
     { id: 'orders', label: 'Orders', icon: ShoppingBag },
     { id: 'payments', label: 'Payments & QR', icon: CreditCard },
     { id: 'users', label: 'Users', icon: Users },
