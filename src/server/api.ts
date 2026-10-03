@@ -572,6 +572,54 @@ apiRouter.get('/admin/users', requireAdmin, async (_req: AuthenticatedRequest, r
   }
 });
 
+// ================= PAYMENT METHODS (CUSTOMER CHECKOUT & ADMIN MANAGEMENT) =================
+apiRouter.get('/payment-methods', async (_req, res) => {
+  try {
+    const paymentMethods = await dbStore.getPaymentMethods(true);
+    res.json({ paymentMethods });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to fetch payment methods' });
+  }
+});
+
+apiRouter.get('/admin/payment-methods', requireAdmin, async (_req: AuthenticatedRequest, res) => {
+  try {
+    const paymentMethods = await dbStore.getPaymentMethods(false);
+    res.json({ paymentMethods });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to fetch payment methods for admin' });
+  }
+});
+
+apiRouter.put('/admin/payment-methods/:id', requireAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+    const updated = await dbStore.updatePaymentMethod(id, req.body);
+    res.json({ paymentMethod: updated, message: 'Payment method updated successfully.' });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || 'Failed to update payment method' });
+  }
+});
+
+apiRouter.post('/admin/payment-methods', requireAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    const newMethod = await dbStore.createPaymentMethod(req.body);
+    res.json({ paymentMethod: newMethod, message: 'New payment method added successfully.' });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || 'Failed to create payment method' });
+  }
+});
+
+apiRouter.delete('/admin/payment-methods/:id', requireAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+    await dbStore.deletePaymentMethod(id);
+    res.json({ success: true, message: 'Payment method removed successfully.' });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || 'Failed to delete payment method' });
+  }
+});
+
 // ================= AI: BUYGEN SMART TECH ADVISOR & COMPARISONS =================
 apiRouter.post('/ai/advisor', async (req, res) => {
   try {

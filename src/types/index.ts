@@ -74,7 +74,18 @@ export interface WishlistItem {
   createdAt: string;
 }
 
-export type PaymentMethod = 'UPI Simulation' | 'Card Simulation' | 'Cash on Delivery Simulation';
+export interface PaymentMethodConfig {
+  id: string;
+  name: string;
+  type: 'upi' | 'cod' | 'card' | 'netbanking' | 'custom';
+  enabled: boolean;
+  description: string;
+  upiId?: string;
+  qrCodeUrl?: string;
+  instructions?: string;
+}
+
+export type PaymentMethod = string;
 
 export type OrderStatus = 'Pending' | 'Confirmed' | 'Processing' | 'Shipped' | 'Delivered';
 

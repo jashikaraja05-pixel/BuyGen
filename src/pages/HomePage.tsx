@@ -30,15 +30,6 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
   const [dealProducts, setDealProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Quick prompt chips for AI Advisor
-  const promptChips = [
-    'Laptop under ₹70,000 with 16GB RAM for programming',
-    'Best ANC headphones under ₹30,000 for travel',
-    'Smartphone with 200MP camera and long battery',
-    '240Hz OLED gaming monitor for esports',
-    'Mechanical keyboard with tactile switches'
-  ];
-
   useEffect(() => {
     const loadHomeData = async () => {
       try {
@@ -120,7 +111,7 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
               </div>
               <div className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-cyan-400" />
-                <span>Simulated Checkout</span>
+                <span>Instant & COD Payments</span>
               </div>
             </div>
           </div>
@@ -161,7 +152,7 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
                   </div>
                   <button
                     onClick={() => navigate(`/products/${allProducts[0].id}`)}
-                    className="px-4 py-2 bg-white text-slate-900 font-bold text-xs rounded-lg hover:bg-slate-100 transition cursor-pointer"
+                    className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 text-slate-950 font-black text-xs rounded-xl hover:opacity-95 transition cursor-pointer shadow-md"
                   >
                     View Details
                   </button>
@@ -378,21 +369,21 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+              <div className="w-10 h-10 rounded-xl bg-slate-900 border border-indigo-500/30 text-indigo-400 flex items-center justify-center font-bold">
                 <Sparkles className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="font-heading font-extrabold text-2xl sm:text-3xl text-slate-900">
+                <h2 className="font-heading font-extrabold text-2xl sm:text-3xl text-white">
                   New Arrivals
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
                   Fresh releases hot off the manufacturer line.
                 </p>
               </div>
             </div>
             <button
               onClick={() => navigate('/products?sortBy=newest')}
-              className="text-xs sm:text-sm font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
+              className="text-xs sm:text-sm font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
             >
               <span>See All New</span>
               <ChevronRight className="w-4 h-4" />

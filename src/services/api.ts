@@ -11,7 +11,8 @@ import type {
   OrderStatus, 
   PaymentMethod,
   SearchLog,
-  UserLoginLog 
+  UserLoginLog,
+  PaymentMethodConfig
 } from '../types/index.ts';
 
 const TOKEN_KEY = 'buygen_auth_token';
@@ -287,6 +288,20 @@ export const api = {
         existingReview?: Review | null;
       }[];
     }>(`/products/${productId}/verified-purchase`),
+  checkReviewEligibility: (productId: string) =>
+    request<{
+      hasPurchased: boolean;
+      orders: {
+        orderId: string;
+        orderDate: string;
+        status: string;
+        quantity: number;
+        selectedColor?: string;
+        price: number;
+        alreadyReviewed: boolean;
+        existingReview?: Review | null;
+      }[];
+    }>(`/products/${productId}/verified-purchase`),
 
   addReview: (productId: string, rating: number, comment: string, orderId: string) =>
     request<{ review: Review; product: Product; reviews: Review[]; message?: string }>(`/products/${productId}/reviews`, {
@@ -308,6 +323,28 @@ export const api = {
   clearAdminLogins: () => request<{ success: boolean; message: string }>('/admin/logins', {
     method: 'DELETE'
   }),
+
+  // Payment Methods
+  getPaymentMethods: () => request<{ paymentMethods: PaymentMethodConfig[] }>('/payment-methods'),
+
+  getAdminPaymentMethods: () => request<{ paymentMethods: PaymentMethodConfig[] }>('/admin/payment-methods'),
+
+  updatePaymentMethod: (id: string, data: Partial<PaymentMethodConfig>) =>
+    request<{ paymentMethod: PaymentMethodConfig; message: string }>(`/admin/payment-methods/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+  createPaymentMethod: (data: Partial<PaymentMethodConfig>) =>
+    request<{ paymentMethod: PaymentMethodConfig; message: string }>('/admin/payment-methods', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  deletePaymentMethod: (id: string) =>
+    request<{ success: boolean; message: string }>(`/admin/payment-methods/${id}`, {
+      method: 'DELETE'
+    }),
 
   logSearch: (query: string, resultsCount?: number) =>
     request<{ success: boolean }>('/search-log', {

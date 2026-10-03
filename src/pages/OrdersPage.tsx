@@ -188,7 +188,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ navigate }) => {
         </div>
         <h2 className="font-heading font-black text-2xl text-white">No Orders Yet</h2>
         <p className="text-xs sm:text-sm text-slate-400 max-w-sm mx-auto leading-relaxed">
-          You haven't placed any consumer electronics orders yet. Explore our flagships and accessories with real simulated checkout!
+          You haven't placed any consumer electronics orders yet. Explore our flagships and accessories with instant UPI QR and COD checkout!
         </p>
         <button
           onClick={() => navigate('/products')}

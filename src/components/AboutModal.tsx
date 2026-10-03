@@ -114,10 +114,13 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, navigat
           <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 space-y-1.5">
             <h4 className="font-bold text-indigo-200 text-xs sm:text-sm flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4 text-cyan-400" />
-              <span>Inbuilt Intelligent Search</span>
+              <span>How BUYGEN Works Under the Hood</span>
             </h4>
             <p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed">
-              Our intelligent engine quietly parses natural language search queries and matches exact hardware specifications (RAM, refresh rate, battery capacity, sensor size) directly from the live catalog without intrusive popups.
+              • <strong>Live Inventory Sync:</strong> Real warehouse quantities update instantly. When you buy an item, stock reduces automatically; when admin restocks, it reflects in real-time.<br/>
+              • <strong>Inbuilt Intelligent Search:</strong> Silently recognizes misspelled keywords (e.g. typing "phene" finds phones, "lapotp" finds laptops) and matches precise hardware specs.<br/>
+              • <strong>Custom Payment Gateway:</strong> Seamlessly checkout using dynamic UPI QR Code, Cash on Delivery (COD), Card, or Net Banking managed directly by store administrators.<br/>
+              • <strong>Transparent Order Tracking:</strong> Real-time tracking from Pending to Confirmed, Packaging, and Shipped with tracking IDs.
             </p>
           </div>
 

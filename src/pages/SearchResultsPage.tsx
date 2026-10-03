@@ -18,7 +18,6 @@ export const SearchResultsPage: React.FC<SearchResultsPageProps> = ({ searchQuer
     const doSearch = async () => {
       try {
         setLoading(true);
-        // Uses the AI Smart Search endpoint that parses natural language and queries real DB
         const res = await api.smartSearch(searchQuery);
         setProducts(res.products || []);
         setInterpreted(res.interpreted);
@@ -35,33 +34,32 @@ export const SearchResultsPage: React.FC<SearchResultsPageProps> = ({ searchQuer
   }, [searchQuery]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 text-white">
       
-      <div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-1">
-          <Sparkles className="w-3.5 h-3.5 text-cyan-500" />
-          <span>Smart Natural-Language Search</span>
+      <div className="pb-4 border-b border-slate-800">
+        <div className="flex items-center gap-2 text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-1">
+          <Search className="w-3.5 h-3.5" />
+          <span>Product Search</span>
         </div>
-        <h1 className="font-heading font-black text-3xl text-slate-900">
+        <h1 className="font-heading font-black text-3xl text-white">
           Results for "{searchQuery}"
         </h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1">
-          Found {products.length} matching products from our persistent catalog.
+        <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          Found {products.length} matching products from our warehouse catalog.
         </p>
       </div>
 
-      {/* Clean budget badge if specified, without any typo detection messages */}
       {interpreted && interpreted.maxPrice && (
-        <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-between text-xs">
+        <div className="p-3.5 rounded-2xl bg-[#0b0e24] border border-cyan-500/30 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-indigo-900">Applied Filter:</span>
-            <span className="px-2.5 py-1 bg-white rounded-lg border border-indigo-200 text-indigo-800 font-semibold">
+            <span className="font-bold text-slate-300">Applied Filter:</span>
+            <span className="px-2.5 py-1 bg-cyan-500/10 rounded-lg border border-cyan-500/30 text-cyan-300 font-semibold">
               Budget: Under ₹{interpreted.maxPrice.toLocaleString('en-IN')}
             </span>
           </div>
           <button
             onClick={() => navigate('/advisor')}
-            className="text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1 cursor-pointer"
+            className="text-cyan-400 hover:text-cyan-300 font-bold flex items-center gap-1 cursor-pointer"
           >
             <span>Ask Tech Advisor</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -72,28 +70,28 @@ export const SearchResultsPage: React.FC<SearchResultsPageProps> = ({ searchQuer
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 animate-pulse">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="aspect-square bg-slate-200 rounded-2xl"></div>
+            <div key={i} className="aspect-square bg-slate-900 rounded-2xl border border-slate-800"></div>
           ))}
         </div>
       ) : products.length === 0 ? (
-        <div className="p-12 bg-white rounded-3xl border border-slate-200 text-center space-y-4 shadow-xs">
-          <div className="w-16 h-16 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+        <div className="p-12 bg-[#0b0e24] rounded-3xl border border-slate-800 text-center space-y-4 shadow-xl">
+          <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 text-slate-500 flex items-center justify-center mx-auto">
             <Search className="w-8 h-8" />
           </div>
-          <h3 className="font-heading font-bold text-slate-900 text-lg">No Exact Matches</h3>
-          <p className="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto">
+          <h3 className="font-heading font-bold text-white text-lg">No Exact Matches Found</h3>
+          <p className="text-xs sm:text-sm text-slate-400 max-w-sm mx-auto">
             We couldn't find any electronics directly matching "{searchQuery}". Try our BUYGEN Smart Tech Advisor for guided recommendations.
           </p>
           <div className="flex justify-center gap-3">
             <button
               onClick={() => navigate('/advisor')}
-              className="px-6 py-2.5 bg-indigo-600 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer"
+              className="px-6 py-2.5 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-slate-950 font-black text-xs rounded-xl shadow-md cursor-pointer transition"
             >
               Consult Tech Advisor
             </button>
             <button
               onClick={() => navigate('/products')}
-              className="px-5 py-2.5 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
+              className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-bold text-xs rounded-xl cursor-pointer transition"
             >
               Browse All
             </button>

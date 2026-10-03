@@ -19,7 +19,8 @@ import {
   CheckCircle2,
   PackageCheck,
   Lock,
-  ThumbsUp
+  ThumbsUp,
+  Zap
 } from 'lucide-react';
 import type { Product, Review } from '../types/index.ts';
 import { api } from '../services/api.ts';
@@ -101,66 +102,58 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
     fetchProduct();
   }, [productId]);
 
-  // Check verified purchase orders for logged in customer
+  // Check verified purchase eligibility when user is logged in
   useEffect(() => {
-    if (user && product) {
-      setLoadingPurchaseCheck(true);
-      api.getVerifiedPurchaseOrders(product.id)
-        .then(res => {
-          setVerifiedPurchaseData(res);
-          if (res.orders && res.orders.length > 0) {
-            // Find first unreviewed order or default to the most recent one
-            const unreviewed = res.orders.find(o => !o.alreadyReviewed);
-            const target = unreviewed || res.orders[0];
-            setSelectedOrderId(target.orderId);
-            if (target.existingReview) {
-              setUserRating(target.existingReview.rating);
-              setUserComment(target.existingReview.comment);
-            }
-          } else {
-            setSelectedOrderId('');
-          }
-        })
-        .catch(err => {
-          console.error('Failed to check verified purchase orders:', err);
-        })
-        .finally(() => {
-          setLoadingPurchaseCheck(false);
-        });
-    } else {
+    if (!user || !productId) {
       setVerifiedPurchaseData(null);
-      setSelectedOrderId('');
+      return;
     }
-  }, [user, product?.id]);
+
+    const checkEligibility = async () => {
+      try {
+        setLoadingPurchaseCheck(true);
+        const res = await api.getVerifiedPurchaseOrders(productId);
+        setVerifiedPurchaseData(res);
+        if (res.orders && res.orders.length > 0) {
+          const firstEligible = res.orders[0];
+          setSelectedOrderId(firstEligible.orderId);
+          if (firstEligible.existingReview) {
+            setUserRating(firstEligible.existingReview.rating);
+            setUserComment(firstEligible.existingReview.comment);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to verify purchase status:', err);
+      } finally {
+        setLoadingPurchaseCheck(false);
+      }
+    };
+
+    checkEligibility();
+  }, [user, productId]);
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-16 animate-pulse space-y-8">
-        <div className="h-4 bg-slate-200 rounded-md w-1/4"></div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-          <div className="aspect-square bg-slate-200 rounded-3xl"></div>
-          <div className="space-y-4">
-            <div className="h-8 bg-slate-200 rounded-md w-3/4"></div>
-            <div className="h-6 bg-slate-200 rounded-md w-1/3"></div>
-            <div className="h-24 bg-slate-200 rounded-xl"></div>
-            <div className="h-12 bg-slate-200 rounded-xl"></div>
-          </div>
-        </div>
+      <div className="max-w-7xl mx-auto px-4 py-20 text-center space-y-4 text-white">
+        <div className="w-12 h-12 rounded-full border-4 border-cyan-400 border-t-transparent animate-spin mx-auto"></div>
+        <p className="text-sm font-bold text-cyan-300">Loading product specs & inventory...</p>
       </div>
     );
   }
 
   if (error || !product) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-20 text-center space-y-4">
-        <AlertCircle className="w-12 h-12 text-rose-500 mx-auto" />
-        <h2 className="font-heading font-bold text-2xl text-slate-900">Product Not Found</h2>
-        <p className="text-slate-500 text-sm">{error || 'This product does not exist or has been removed.'}</p>
+      <div className="max-w-xl mx-auto px-4 py-20 text-center space-y-4 text-white">
+        <div className="w-16 h-16 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto border border-rose-500/30">
+          <AlertCircle className="w-8 h-8" />
+        </div>
+        <h2 className="font-heading font-black text-2xl text-white">Product Not Found</h2>
+        <p className="text-xs text-slate-400">{error || 'The requested product is not available in our catalog.'}</p>
         <button
           onClick={() => navigate('/products')}
-          className="px-6 py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-700"
+          className="px-6 py-2.5 bg-gradient-to-r from-cyan-500 to-indigo-600 text-slate-950 font-black text-xs rounded-xl shadow-md cursor-pointer"
         >
-          Return to Catalog
+          Browse All Electronics
         </button>
       </div>
     );
@@ -258,59 +251,72 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
       setReviewError(null);
       setReviewSuccess(null);
       const res = await api.addReview(product.id, userRating, userComment.trim(), selectedOrderId);
-      setReviews(res.reviews);
-      setProduct(res.product);
-      setReviewSuccess(`Verified feedback linked to Order #${selectedOrderId} saved successfully!`);
+      
+      const newReview = res.review;
+      setReviews(prev => [newReview, ...prev.filter(r => r.orderId !== selectedOrderId)]);
+      setReviewSuccess('Your verified purchase review has been published!');
+      
+      setVerifiedPurchaseData(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          orders: prev.orders.map(o => o.orderId === selectedOrderId ? {
+            ...o,
+            alreadyReviewed: true,
+            existingReview: newReview
+          } : o)
+        };
+      });
 
-      // Refresh verified purchase status
-      const updatedCheck = await api.getVerifiedPurchaseOrders(product.id);
-      setVerifiedPurchaseData(updatedCheck);
+      if (res.product) {
+        setProduct(res.product);
+      }
     } catch (err: any) {
-      setReviewError(err.message || 'Failed to submit verified review');
+      setReviewError(err.message || 'Failed to submit review');
     } finally {
       setSubmittingReview(false);
     }
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-16">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12 text-white">
       
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-xs font-medium text-slate-500">
-        <button onClick={() => navigate('/')} className="hover:text-indigo-600">Home</button>
-        <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-        <button onClick={() => navigate('/products')} className="hover:text-indigo-600">Products</button>
-        <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+      <nav className="flex items-center gap-2 text-xs font-medium text-slate-400">
+        <button onClick={() => navigate('/')} className="hover:text-cyan-400 transition cursor-pointer">Home</button>
+        <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
+        <button onClick={() => navigate('/products')} className="hover:text-cyan-400 transition cursor-pointer">Products</button>
+        <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
         <button 
           onClick={() => navigate(`/categories/${product.categoryId}`)} 
-          className="hover:text-indigo-600"
+          className="hover:text-cyan-400 transition cursor-pointer"
         >
           {product.categoryName}
         </button>
-        <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-        <span className="text-slate-800 font-semibold truncate max-w-xs">{product.name}</span>
+        <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
+        <span className="text-slate-200 font-semibold truncate max-w-xs">{product.name}</span>
       </nav>
 
       {/* Main Product Showcase */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
         
         {/* Left: Product Images Gallery */}
         <div className="lg:col-span-6 space-y-4">
-          <div className="relative rounded-3xl bg-slate-100 overflow-hidden border border-slate-200/80 aspect-square group shadow-xs">
+          <div className="relative rounded-3xl bg-[#0b0e24] overflow-hidden border border-slate-800 aspect-square group shadow-2xl">
             <img
               src={selectedImage || product.images[0]}
               alt={product.name}
               className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
             />
             {isOutOfStock && (
-              <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center">
-                <span className="px-4 py-2 bg-rose-600 text-white text-sm font-bold uppercase tracking-wider rounded-xl shadow-lg">
+              <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center">
+                <span className="px-4 py-2 bg-rose-600 text-white text-sm font-black uppercase tracking-wider rounded-xl shadow-lg">
                   Currently Out of Stock
                 </span>
               </div>
             )}
             {product.badge && (
-              <span className="absolute top-4 left-4 px-3 py-1 text-xs font-black uppercase rounded-lg bg-slate-900 text-white shadow-md">
+              <span className="absolute top-4 left-4 px-3 py-1 text-xs font-black uppercase rounded-lg bg-slate-950/90 text-cyan-300 border border-cyan-500/30 shadow-md">
                 {product.badge}
               </span>
             )}
@@ -323,8 +329,8 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
                 <button
                   key={idx}
                   onClick={() => setSelectedImage(img)}
-                  className={`w-20 h-20 rounded-xl overflow-hidden border-2 transition cursor-pointer shrink-0 ${
-                    selectedImage === img ? 'border-indigo-600 shadow-md ring-2 ring-indigo-100' : 'border-slate-200 hover:border-slate-300'
+                  className={`w-20 h-20 rounded-2xl overflow-hidden border-2 transition cursor-pointer shrink-0 ${
+                    selectedImage === img ? 'border-cyan-400 shadow-md ring-2 ring-cyan-500/20' : 'border-slate-800 hover:border-slate-700 bg-slate-950'
                   }`}
                 >
                   <img src={img} alt="" className="w-full h-full object-cover" />
@@ -335,29 +341,29 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
         </div>
 
         {/* Right: Product Info & Purchase Form */}
-        <div className="lg:col-span-6 space-y-6">
+        <div className="lg:col-span-6 bg-[#0b0e24] rounded-3xl border border-slate-800 p-6 sm:p-8 space-y-6 shadow-xl">
           
           <div>
             <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-              <span className="px-2.5 py-0.5 rounded-md bg-slate-100 text-indigo-700">{product.brand}</span>
+              <span className="px-2.5 py-0.5 rounded-md bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">{product.brand}</span>
               <span>{product.subcategory || product.categoryName}</span>
             </div>
 
-            <h1 className="font-heading font-black text-2xl sm:text-3xl text-slate-900 leading-tight">
+            <h1 className="font-heading font-black text-2xl sm:text-3xl text-white leading-tight">
               {product.name}
             </h1>
 
             {/* Rating & Review Counter */}
             <div className="flex items-center gap-3 mt-3">
-              <div className="flex items-center gap-1 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200/80 text-amber-800 text-xs font-bold">
+              <div className="flex items-center gap-1 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/30 text-amber-300 text-xs font-bold">
                 <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                 <span>{product.rating.toFixed(1)}</span>
               </div>
-              <span className="text-xs text-slate-500 font-medium">
+              <span className="text-xs text-slate-400 font-medium">
                 {product.reviewCount} customer ratings
               </span>
-              <span className="text-slate-300">•</span>
-              <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
+              <span className="text-slate-600">•</span>
+              <div className="flex items-center gap-1 text-xs font-semibold text-emerald-400">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 <span>Verified Buyer Reviewed</span>
               </div>
@@ -365,41 +371,41 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
           </div>
 
           {/* Pricing Box */}
-          <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+          <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
             <div>
               <div className="flex items-baseline gap-3">
-                <span className="font-heading font-black text-3xl sm:text-4xl text-slate-900">
+                <span className="font-heading font-black text-3xl sm:text-4xl text-white">
                   ₹{product.price.toLocaleString('en-IN')}
                 </span>
                 {product.originalPrice > product.price && (
-                  <span className="text-sm text-slate-400 line-through">
+                  <span className="text-sm text-slate-500 line-through">
                     ₹{product.originalPrice.toLocaleString('en-IN')}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500 mt-1">Inclusive of all simulated taxes & GST</p>
+              <p className="text-xs text-slate-400 mt-1">Inclusive of all taxes & GST • Direct Dispatch</p>
             </div>
 
             {product.discount > 0 && (
-              <span className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-black text-sm shadow-xs">
+              <span className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-black text-sm shadow-xs">
                 {product.discount}% OFF
               </span>
             )}
           </div>
 
           {/* Stock Availability */}
-          <div className="flex items-center justify-between text-xs sm:text-sm py-2 border-y border-slate-100">
-            <span className="font-semibold text-slate-600">Availability:</span>
+          <div className="flex items-center justify-between text-xs sm:text-sm py-2 border-y border-slate-800">
+            <span className="font-semibold text-slate-400">Availability:</span>
             {isOutOfStock ? (
-              <span className="text-rose-600 font-bold flex items-center gap-1.5">
+              <span className="text-rose-400 font-bold flex items-center gap-1.5">
                 <AlertCircle className="w-4 h-4" /> Out of stock
               </span>
             ) : product.stock <= 5 ? (
-              <span className="text-amber-600 font-bold flex items-center gap-1.5">
-                <AlertCircle className="w-4 h-4" /> Only {product.stock} units left in stock!
+              <span className="text-amber-300 font-black flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 text-amber-400" /> Only {product.stock} units left in stock!
               </span>
             ) : (
-              <span className="text-emerald-600 font-bold flex items-center gap-1.5">
+              <span className="text-emerald-400 font-bold flex items-center gap-1.5">
                 <Check className="w-4 h-4" /> In Stock ({product.stock} units ready to dispatch)
               </span>
             )}
@@ -409,11 +415,11 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
           {productColors.length > 0 && (
             <div className="space-y-2.5 pt-1">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
                   Available Colours
                 </span>
                 {selectedColor && (
-                  <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-lg border border-indigo-100">
+                  <span className="text-xs font-bold text-cyan-300 bg-cyan-500/10 px-2.5 py-0.5 rounded-lg border border-cyan-500/30">
                     Selected: {selectedColor}
                   </span>
                 )}
@@ -428,12 +434,12 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
                       onClick={() => setSelectedColor(color)}
                       className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
                         isSelected
-                          ? 'bg-slate-900 text-white shadow-md shadow-slate-900/20 ring-2 ring-indigo-500'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                          ? 'bg-slate-900 text-white shadow-md ring-2 ring-cyan-400 border border-cyan-500/50'
+                          : 'bg-slate-950 hover:bg-slate-900 text-slate-300 border border-slate-800'
                       }`}
                     >
                       <span
-                        className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0"
+                        className="w-3.5 h-3.5 rounded-full border border-black/40 shrink-0"
                         style={{
                           backgroundColor:
                             color.toLowerCase().includes('black') ? '#0f172a' :
@@ -457,28 +463,28 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
           {/* Quantity Selector & Purchase Actions */}
           <div className="space-y-4">
             <div className="flex items-center gap-4">
-              <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Quantity</span>
-              <div className="inline-flex items-center rounded-xl border border-slate-200 bg-white shadow-xs">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Quantity</span>
+              <div className="inline-flex items-center rounded-xl border border-slate-700 bg-slate-950">
                 <button
                   type="button"
                   onClick={() => handleQuantityChange(-1)}
                   disabled={quantity <= 1 || isOutOfStock}
-                  className="p-2.5 text-slate-600 hover:text-indigo-600 disabled:text-slate-300 disabled:cursor-not-allowed transition"
+                  className="p-2.5 text-slate-400 hover:text-white disabled:text-slate-600 disabled:cursor-not-allowed transition"
                 >
                   <Minus className="w-3.5 h-3.5" />
                 </button>
-                <span className="px-4 text-xs font-black text-slate-900">{quantity}</span>
+                <span className="px-4 text-xs font-black text-white">{quantity}</span>
                 <button
                   type="button"
                   onClick={() => handleQuantityChange(1)}
                   disabled={quantity >= product.stock || isOutOfStock}
-                  className="p-2.5 text-slate-600 hover:text-indigo-600 disabled:text-slate-300 disabled:cursor-not-allowed transition"
+                  className="p-2.5 text-slate-400 hover:text-white disabled:text-slate-600 disabled:cursor-not-allowed transition"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
               <span className="text-xs text-slate-400">
-                (Max: {product.stock})
+                (Available: {product.stock})
               </span>
             </div>
 
@@ -489,8 +495,8 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
                 disabled={isOutOfStock || addingToCart}
                 className={`py-3.5 px-6 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition cursor-pointer ${
                   isOutOfStock
-                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                    : 'bg-slate-900 hover:bg-slate-800 text-white shadow-slate-900/10 active:scale-95'
+                    ? 'bg-slate-900 text-slate-600 cursor-not-allowed border border-slate-800'
+                    : 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-700 active:scale-95'
                 }`}
               >
                 <ShoppingCart className="w-4 h-4" />
@@ -503,8 +509,8 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
                 disabled={isOutOfStock || addingToCart}
                 className={`py-3.5 px-6 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition cursor-pointer ${
                   isOutOfStock
-                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                    : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/25 active:scale-95'
+                    ? 'bg-slate-900 text-slate-600 cursor-not-allowed border border-slate-800'
+                    : 'bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-slate-950 font-black shadow-cyan-500/25 active:scale-95'
                 }`}
               >
                 <span>⚡ Buy Now</span>
@@ -520,11 +526,11 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
                 disabled={wishlistLoading}
                 className={`flex-1 py-2.5 px-4 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
                   isWishlisted
-                    ? 'bg-rose-50 border-rose-200 text-rose-600'
-                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    ? 'bg-rose-500/20 border-rose-500/40 text-rose-300'
+                    : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-900'
                 }`}
               >
-                <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-rose-600' : ''}`} />
+                <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-rose-500 text-rose-500' : ''}`} />
                 <span>{isWishlisted ? 'Saved in Wishlist' : 'Add to Wishlist'}</span>
               </button>
 
@@ -533,8 +539,8 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
                 onClick={handleToggleCompare}
                 className={`flex-1 py-2.5 px-4 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
                   comparing
-                    ? 'bg-cyan-50 border-cyan-200 text-cyan-700'
-                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
+                    : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-900'
                 }`}
               >
                 <SlidersHorizontal className="w-4 h-4" />
@@ -544,17 +550,17 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
           </div>
 
           {/* Micro assurances */}
-          <div className="grid grid-cols-3 gap-3 pt-4 border-t border-slate-100 text-xs text-slate-500">
+          <div className="grid grid-cols-3 gap-3 pt-4 border-t border-slate-800 text-xs text-slate-400">
             <div className="flex items-center gap-2">
-              <Truck className="w-4 h-4 text-indigo-600" />
+              <Truck className="w-4 h-4 text-cyan-400" />
               <span>Free Express Dispatch</span>
             </div>
             <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
               <span>1 Year Warranty</span>
             </div>
             <div className="flex items-center gap-2">
-              <RotateCcw className="w-4 h-4 text-cyan-600" />
+              <RotateCcw className="w-4 h-4 text-indigo-400" />
               <span>7-Day Replacement</span>
             </div>
           </div>
@@ -563,38 +569,38 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
       </div>
 
       {/* Description & Technical Specifications */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 pt-8 border-t border-slate-200">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 pt-8 border-t border-slate-800">
         
         {/* Description */}
         <div className="lg:col-span-5 space-y-4">
-          <h2 className="font-heading font-bold text-xl text-slate-900">
+          <h2 className="font-heading font-bold text-xl text-white">
             Product Overview
           </h2>
-          <p className="text-sm text-slate-600 leading-relaxed font-normal whitespace-pre-line">
+          <p className="text-sm text-slate-300 leading-relaxed font-normal whitespace-pre-line">
             {product.description}
           </p>
 
-          <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-100 text-xs text-indigo-900 space-y-2">
-            <div className="flex items-center gap-2 font-bold text-indigo-950">
-              <Sparkles className="w-4 h-4 text-indigo-600" />
+          <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 text-xs text-slate-300 space-y-2">
+            <div className="flex items-center gap-2 font-bold text-cyan-300">
+              <Sparkles className="w-4 h-4 text-cyan-400" />
               <span>BUYGEN Quality Certified</span>
             </div>
-            <p className="text-indigo-800 leading-relaxed">
-              Every unit is serialized, batch verified, and shipped in tamper-evident manufacturer packaging.
+            <p className="text-slate-300 leading-relaxed">
+              Every unit is serialized, batch verified, and shipped in tamper-evident packaging with live order tracking.
             </p>
           </div>
         </div>
 
         {/* Specifications Table */}
         <div className="lg:col-span-7 space-y-4">
-          <h2 className="font-heading font-bold text-xl text-slate-900">
+          <h2 className="font-heading font-bold text-xl text-white">
             Technical Specifications
           </h2>
-          <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs divide-y divide-slate-100">
+          <div className="bg-[#0b0e24] rounded-2xl border border-slate-800 overflow-hidden shadow-xl divide-y divide-slate-800/80">
             {Object.entries(product.specifications || {}).map(([key, value]) => (
-              <div key={key} className="grid grid-cols-3 px-5 py-3 text-xs sm:text-sm">
-                <span className="font-semibold text-slate-500">{key}</span>
-                <span className="col-span-2 text-slate-900 font-medium">{value}</span>
+              <div key={key} className="grid grid-cols-3 px-5 py-3.5 text-xs sm:text-sm">
+                <span className="font-semibold text-slate-400">{key}</span>
+                <span className="col-span-2 text-white font-medium">{value}</span>
               </div>
             ))}
           </div>
@@ -603,27 +609,27 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
       </div>
 
       {/* Reviews Section */}
-      <div className="pt-8 border-t border-slate-200 space-y-8">
+      <div className="pt-8 border-t border-slate-800 space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                <BadgeCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                <BadgeCheck className="w-3.5 h-3.5 text-emerald-400" />
                 <span>100% Order-Verified Reviews</span>
               </span>
             </div>
-            <h2 className="font-heading font-black text-2xl sm:text-3xl text-slate-900">
+            <h2 className="font-heading font-black text-2xl sm:text-3xl text-white">
               Customer Reviews & Ratings ({reviews.length})
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
               Authentic customer feedback linked directly to verified purchases and order IDs.
             </p>
           </div>
 
           {/* Rating Summary Score Card */}
-          <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+          <div className="flex items-center gap-4 bg-[#0b0e24] p-4 rounded-2xl border border-slate-800">
             <div className="text-center">
-              <span className="font-heading font-black text-3xl text-slate-900 leading-none">
+              <span className="font-heading font-black text-3xl text-white leading-none">
                 {product.rating.toFixed(1)}
               </span>
               <span className="text-xs text-slate-400 block mt-0.5">out of 5</span>
@@ -636,12 +642,12 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
                     className={`w-4 h-4 ${
                       s <= Math.round(product.rating)
                         ? 'fill-amber-400 text-amber-400'
-                        : 'text-slate-300'
+                        : 'text-slate-700'
                     }`}
                   />
                 ))}
               </div>
-              <span className="text-[11px] text-slate-500 font-semibold block">
+              <span className="text-[11px] text-slate-400 font-semibold block">
                 Based on {reviews.length} verified buyer ratings
               </span>
             </div>
@@ -651,50 +657,47 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* Left Column: Verified Purchase Feedback Form / Verification Status */}
-          <div className="lg:col-span-5 bg-slate-50 rounded-3xl p-6 sm:p-7 border border-slate-200/80 space-y-5 shadow-xs">
+          <div className="lg:col-span-5 bg-[#0b0e24] rounded-3xl p-6 sm:p-7 border border-slate-800 space-y-5 shadow-xl">
             
             {!user ? (
-              /* Case 1: Guest / Not Logged In */
               <div className="text-center py-6 space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center mx-auto shadow-xs">
+                <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center mx-auto shadow-xs">
                   <Lock className="w-6 h-6" />
                 </div>
                 <div className="space-y-1">
-                  <h3 className="font-heading font-black text-lg text-slate-900">
+                  <h3 className="font-heading font-black text-lg text-white">
                     Sign In to Leave Feedback
                   </h3>
-                  <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+                  <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
                     To maintain strict integrity, reviews are verified against actual customer orders. Sign in to your account to review purchased products.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => navigate('/login')}
-                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition cursor-pointer"
+                  className="px-6 py-2.5 bg-gradient-to-r from-cyan-500 to-indigo-600 text-slate-950 font-black text-xs rounded-xl shadow-md transition cursor-pointer"
                 >
                   Sign In to Your Account
                 </button>
               </div>
             ) : loadingPurchaseCheck ? (
-              /* Checking purchase orders */
               <div className="py-12 text-center text-xs text-slate-400 animate-pulse space-y-2">
-                <PackageCheck className="w-6 h-6 text-slate-300 mx-auto animate-bounce" />
+                <PackageCheck className="w-6 h-6 text-slate-500 mx-auto animate-bounce" />
                 <p>Verifying customer order history for this item...</p>
               </div>
             ) : !verifiedPurchaseData?.hasPurchased ? (
-              /* Case 2: Signed In, But Has Not Purchased This Product */
               <div className="text-center py-6 space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-xs">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto shadow-xs">
                   <ShieldCheck className="w-6 h-6" />
                 </div>
                 <div className="space-y-1.5">
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider inline-block">
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase tracking-wider inline-block">
                     Verified Purchases Only
                   </span>
-                  <h3 className="font-heading font-black text-lg text-slate-900">
+                  <h3 className="font-heading font-black text-lg text-white">
                     Order Verification Required
                   </h3>
-                  <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+                  <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
                     You haven’t ordered this product yet on your account ({user.email}). Only customers with confirmed purchase order IDs can submit ratings and feedback.
                   </p>
                 </div>
@@ -704,41 +707,40 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
                     onClick={() => {
                       window.scrollTo({ top: 300, behavior: 'smooth' });
                     }}
-                    className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-md transition cursor-pointer"
+                    className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/30 font-bold text-xs rounded-xl shadow-md transition cursor-pointer"
                   >
                     Order This Item to Review It
                   </button>
                 </div>
               </div>
             ) : (
-              /* Case 3: Signed In AND Verified Buyer! */
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <BadgeCheck className="w-5 h-5 text-emerald-600" />
-                    <h3 className="font-heading font-black text-base text-slate-900">
+                    <BadgeCheck className="w-5 h-5 text-emerald-400" />
+                    <h3 className="font-heading font-black text-base text-white">
                       Verified Buyer Feedback
                     </h3>
                   </div>
-                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md uppercase">
+                  <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-[10px] font-bold rounded-md uppercase border border-emerald-500/40">
                     Order Verified
                   </span>
                 </div>
 
-                <p className="text-xs text-slate-500 leading-relaxed">
+                <p className="text-xs text-slate-400 leading-relaxed">
                   Thank you for shopping with BUYGEN! Select your order ID below to record your verified feedback.
                 </p>
 
                 {reviewSuccess && (
-                  <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2.5 animate-fadeIn">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs text-emerald-300 flex items-center gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                     <span className="font-medium">{reviewSuccess}</span>
                   </div>
                 )}
 
                 {reviewError && (
-                  <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center gap-2.5">
-                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-300 flex items-center gap-2.5">
+                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                     <span className="font-medium">{reviewError}</span>
                   </div>
                 )}
@@ -746,19 +748,19 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
                 <form onSubmit={handleReviewSubmit} className="space-y-4">
                   {/* Order ID Selection */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
                       <span>Linked Purchase Order ID *</span>
-                      <span className="text-[10px] text-emerald-600 font-semibold lowercase">
+                      <span className="text-[10px] text-emerald-400 font-semibold lowercase">
                         {verifiedPurchaseData.orders.length} eligible purchase{verifiedPurchaseData.orders.length > 1 ? 's' : ''}
                       </span>
                     </label>
 
                     {verifiedPurchaseData.orders.length === 1 ? (
-                      <div className="p-3 bg-white border border-slate-200 rounded-xl text-xs flex items-center justify-between shadow-2xs">
+                      <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs flex items-center justify-between shadow-2xs">
                         <div className="flex items-center gap-2">
-                          <PackageCheck className="w-4 h-4 text-emerald-600" />
+                          <PackageCheck className="w-4 h-4 text-emerald-400" />
                           <div>
-                            <span className="font-mono font-bold text-slate-900">
+                            <span className="font-mono font-bold text-cyan-300">
                               Order #{verifiedPurchaseData.orders[0].orderId}
                             </span>
                             <span className="text-[11px] text-slate-400 block">
@@ -768,11 +770,11 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
                           </div>
                         </div>
                         {verifiedPurchaseData.orders[0].alreadyReviewed ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                             Editing Feedback
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                             Ready to Review
                           </span>
                         )}
@@ -781,10 +783,10 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
                       <select
                         value={selectedOrderId}
                         onChange={(e) => handleOrderSelect(e.target.value)}
-                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-hidden focus:border-indigo-600 cursor-pointer shadow-2xs"
+                        className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono font-bold text-white focus:outline-hidden focus:border-cyan-400 cursor-pointer"
                       >
                         {verifiedPurchaseData.orders.map((ord) => (
-                          <option key={ord.orderId} value={ord.orderId}>
+                          <option key={ord.orderId} value={ord.orderId} className="bg-slate-900 text-white">
                             Order #{ord.orderId} • {new Date(ord.orderDate).toLocaleDateString()} ({ord.quantity} unit{ord.quantity > 1 ? 's' : ''}{ord.selectedColor ? ` - ${ord.selectedColor}` : ''}) {ord.alreadyReviewed ? '• [Already Reviewed]' : '• [New Feedback]'}
                           </option>
                         ))}
@@ -794,10 +796,10 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
 
                   {/* Interactive Star Rating Selector */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
                       Rating Score *
                     </label>
-                    <div className="flex items-center gap-1.5 p-2.5 bg-white rounded-xl border border-slate-200">
+                    <div className="flex items-center gap-1.5 p-2.5 bg-slate-950 rounded-xl border border-slate-800">
                       {[1, 2, 3, 4, 5].map((star) => {
                         const activeLevel = hoverRating || userRating;
                         const isFilled = star <= activeLevel;
@@ -815,19 +817,18 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
                               className={`w-6 h-6 transition-colors duration-150 ${
                                 isFilled
                                   ? 'fill-amber-400 text-amber-400 filter drop-shadow-[0_2px_6px_rgba(251,191,36,0.4)]'
-                                  : 'text-slate-300'
+                                  : 'text-slate-700'
                               }`}
                             />
                           </button>
                         );
                       })}
-                      <span className="text-xs font-bold text-slate-900 ml-2 font-mono">
+                      <span className="text-xs font-bold text-white ml-2 font-mono">
                         {userRating} / 5.0
                       </span>
                     </div>
 
-                    {/* Rating Descriptor Feedback */}
-                    <div className="mt-1 text-[11px] font-semibold text-indigo-700">
+                    <div className="mt-1 text-[11px] font-semibold text-cyan-400">
                       {userRating === 5 && '★★★★★ 5 Stars - Outstanding / Highly Recommended'}
                       {userRating === 4 && '★★★★☆ 4 Stars - Very Good / High Quality & Performance'}
                       {userRating === 3 && '★★★☆☆ 3 Stars - Average / Decent Value for Money'}
@@ -839,10 +840,10 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
                   {/* Review Comment Box */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
                         Your Feedback & Experience *
                       </label>
-                      <span className="text-[10px] text-slate-400 font-mono">
+                      <span className="text-[10px] text-slate-500 font-mono">
                         {userComment.length} characters
                       </span>
                     </div>
@@ -852,7 +853,7 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
                       placeholder="Describe build quality, real-world battery life, sound, speed, thermals, and overall satisfaction..."
                       value={userComment}
                       onChange={(e) => setUserComment(e.target.value)}
-                      className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-hidden focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition shadow-inner"
+                      className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-cyan-400 transition"
                     />
                   </div>
 
@@ -860,7 +861,7 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
                   <button
                     type="submit"
                     disabled={submittingReview}
-                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-98 text-white font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer shadow-md shadow-indigo-600/20 flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-slate-950 font-black text-xs sm:text-sm rounded-xl transition cursor-pointer shadow-md shadow-cyan-500/20 flex items-center justify-center gap-2"
                   >
                     <MessageSquare className="w-4 h-4" />
                     <span>
@@ -878,19 +879,19 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
           {/* Right Column: Customer Reviews Feed */}
           <div className="lg:col-span-7 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-heading font-black text-base text-slate-900">
+              <h3 className="font-heading font-black text-base text-white">
                 Verified Customer Feedback ({reviews.length})
               </h3>
-              <span className="text-xs text-slate-500 font-semibold">
+              <span className="text-xs text-slate-400 font-semibold">
                 Sorted by most recent
               </span>
             </div>
 
             {reviews.length === 0 ? (
-              <div className="p-10 bg-white rounded-3xl border border-slate-200/80 text-center space-y-3">
-                <MessageSquare className="w-10 h-10 text-slate-300 mx-auto" />
-                <h4 className="font-heading font-bold text-sm text-slate-800">No Verified Reviews Yet</h4>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+              <div className="p-10 bg-[#0b0e24] rounded-3xl border border-slate-800 text-center space-y-3">
+                <MessageSquare className="w-10 h-10 text-slate-600 mx-auto" />
+                <h4 className="font-heading font-bold text-sm text-white">No Verified Reviews Yet</h4>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
                   Be the first customer with a verified purchase order to leave your feedback and rating for this electronics item!
                 </p>
               </div>
@@ -901,32 +902,31 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
                   return (
                     <div
                       key={rev.id}
-                      className={`p-5 bg-white rounded-3xl border transition space-y-3 shadow-xs ${
+                      className={`p-5 bg-[#0b0e24] rounded-3xl border transition space-y-3 shadow-xl ${
                         isCurrentUser 
-                          ? 'border-indigo-300 ring-2 ring-indigo-50 bg-indigo-50/10' 
-                          : 'border-slate-200/80 hover:border-slate-300'
+                          ? 'border-cyan-500/40 ring-1 ring-cyan-500/20' 
+                          : 'border-slate-800 hover:border-slate-700'
                       }`}
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-800">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-cyan-500 text-white font-black text-xs flex items-center justify-center shadow-xs">
+                          <div className="w-8 h-8 rounded-full bg-cyan-500/20 text-cyan-300 font-black text-xs flex items-center justify-center border border-cyan-500/40">
                             {rev.userName.charAt(0).toUpperCase()}
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="font-heading font-bold text-xs sm:text-sm text-slate-900">
+                              <span className="font-heading font-bold text-xs sm:text-sm text-white">
                                 {rev.userName}
                               </span>
                               {isCurrentUser && (
-                                <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-indigo-100 text-indigo-800">
+                                <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
                                   Your Review
                                 </span>
                               )}
                             </div>
                             <div className="flex items-center gap-2 mt-0.5">
-                              {/* Order ID Link & Verification Badge */}
-                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1 font-mono">
-                                <BadgeCheck className="w-3 h-3 text-emerald-600" />
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1 font-mono">
+                                <BadgeCheck className="w-3 h-3 text-emerald-400" />
                                 <span>Order #{rev.orderId || 'Verified'}</span>
                               </span>
                             </div>
@@ -951,18 +951,18 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
                               className={`w-3.5 h-3.5 ${
                                 i <= rev.rating 
                                   ? 'fill-amber-400 text-amber-400' 
-                                  : 'text-slate-200'
+                                  : 'text-slate-700'
                               }`}
                             />
                           ))}
                         </div>
-                        <span className="text-xs font-black text-slate-800 font-mono">
+                        <span className="text-xs font-black text-amber-300 font-mono">
                           {rev.rating.toFixed(1)} ★
                         </span>
                       </div>
 
                       {/* Comment */}
-                      <p className="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line">
+                      <p className="text-xs sm:text-sm text-slate-300 leading-relaxed whitespace-pre-line">
                         {rev.comment}
                       </p>
                     </div>
@@ -977,19 +977,19 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({ productI
 
       {/* Related Products */}
       {related.length > 0 && (
-        <div className="pt-8 border-t border-slate-200 space-y-6">
+        <div className="pt-8 border-t border-slate-800 space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="font-heading font-bold text-2xl text-slate-900">
+              <h2 className="font-heading font-bold text-2xl text-white">
                 Related Electronics
               </h2>
-              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+              <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
                 More top choices from the {product.categoryName} category.
               </p>
             </div>
             <button
               onClick={() => navigate(`/categories/${product.categoryId}`)}
-              className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+              className="text-xs font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
             >
               <span>View All</span>
               <ChevronRight className="w-3.5 h-3.5" />

@@ -5,6 +5,7 @@ import {
   FolderTree, 
   ShoppingBag, 
   Users, 
+  CreditCard,
   ShieldCheck, 
   LogOut, 
   Store,
@@ -15,8 +16,8 @@ import {
 import { useAuth } from '../../context/AuthContext.tsx';
 
 interface AdminLayoutProps {
-  currentAdminTab: 'dashboard' | 'products' | 'categories' | 'orders' | 'users';
-  setAdminTab: (tab: 'dashboard' | 'products' | 'categories' | 'orders' | 'users') => void;
+  currentAdminTab: 'dashboard' | 'products' | 'categories' | 'orders' | 'users' | 'payments';
+  setAdminTab: (tab: 'dashboard' | 'products' | 'categories' | 'orders' | 'users' | 'payments') => void;
   navigate: (path: string) => void;
   children: React.ReactNode;
 }
@@ -163,6 +164,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     { id: 'products', label: 'Products', icon: Package },
     { id: 'categories', label: 'Categories', icon: FolderTree },
     { id: 'orders', label: 'Orders', icon: ShoppingBag },
+    { id: 'payments', label: 'Payments & QR', icon: CreditCard },
     { id: 'users', label: 'Users', icon: Users },
   ];
 

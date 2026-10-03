@@ -7,7 +7,7 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ navigate }) => {
   return (
-    <footer className="bg-slate-900 text-slate-300 pt-16 pb-12 border-t border-slate-800">
+    <footer className="bg-[#070814] text-slate-300 pt-16 pb-12 border-t border-slate-800">
       {/* Value Propositions */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 border-b border-slate-800/80">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -54,7 +54,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
             <div>
               <h4 className="text-white font-bold text-sm">Smart Tech Advisor</h4>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                AI requirement analysis connected to our live product catalog.
+                Intelligent requirement analysis connected to our live product catalog.
               </p>
             </div>
           </div>
@@ -78,7 +78,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
             </div>
             <p className="text-xs text-slate-400 mt-3 max-w-sm leading-relaxed">
               "Next-Gen Shopping, Smarter Choices."
-              The premier electronics marketplace delivering high-performance computing, audio fidelity, and smart gadgets with AI-guided buying advice.
+              The premier electronics marketplace delivering high-performance computing, audio fidelity, and smart gadgets with guided buying advice.
             </p>
             <div className="mt-4 flex items-center gap-3">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-indigo-950/80 text-cyan-300 border border-cyan-800">
@@ -131,7 +131,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 border-t border-slate-800 text-xs text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-4">
         <p>© 2026 BUYGEN Electronics Marketplace. All rights reserved.</p>
         <p className="flex items-center gap-2">
-          <span>Simulated Checkout: UPI / Card / COD</span>
+          <span>Verified Payments: UPI QR / Card / Cash on Delivery</span>
           <span>•</span>
           <span>Persistent Firestore DB</span>
         </p>

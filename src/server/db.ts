@@ -21,7 +21,8 @@ import type {
   AdminMetrics, 
   OrderStatus,
   SearchLog,
-  UserLoginLog
+  UserLoginLog,
+  PaymentMethodConfig
 } from '../types/index.ts';
 import { initialCategories, initialProducts, initialReviews } from './seedData.ts';
 import { getExpandedSearchTokens } from '../lib/spellingNormalizer.ts';
@@ -58,6 +59,7 @@ class DatabaseStore {
   private reviews: Map<string, Review[]> = new Map(); // productId -> reviews
   private searchLogs: SearchLog[] = [];
   private loginLogs: UserLoginLog[] = [];
+  private paymentMethods: Map<string, PaymentMethodConfig> = new Map();
   private initialized: boolean = false;
 
   constructor() {
@@ -72,6 +74,45 @@ class DatabaseStore {
 
     // Seed default products
     initialProducts.forEach(prod => this.products.set(prod.id, prod));
+
+    // Seed default payment methods
+    const defaultPaymentMethods: PaymentMethodConfig[] = [
+      {
+        id: 'pm-upi',
+        name: 'UPI / Dynamic QR Code Pay',
+        type: 'upi',
+        enabled: true,
+        description: 'Scan & pay with any UPI App (Google Pay, PhonePe, Paytm, BHIM)',
+        upiId: 'buygen.electronics@okhdfcbank',
+        qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi%3A%2F%2Fpay%3Fpa%3Dbuygen.electronics%40okhdfcbank%26pn%3DBUYGEN%2520Electronics%26cu%3DINR',
+        instructions: 'Scan QR Code with your UPI app, complete payment, and place order instantly.'
+      },
+      {
+        id: 'pm-cod',
+        name: 'Cash on Delivery (COD)',
+        type: 'cod',
+        enabled: true,
+        description: 'Pay via Cash or UPI QR to delivery agent upon doorstep arrival',
+        instructions: 'Keep exact cash handy or scan delivery partner QR at the time of delivery.'
+      },
+      {
+        id: 'pm-card',
+        name: 'Credit / Debit Card',
+        type: 'card',
+        enabled: true,
+        description: 'Visa, MasterCard, RuPay & American Express',
+        instructions: 'Enter 16-digit card details for instant verified checkout.'
+      },
+      {
+        id: 'pm-netbanking',
+        name: 'Net Banking',
+        type: 'netbanking',
+        enabled: true,
+        description: 'HDFC, ICICI, SBI, Axis, Kotak & all major banks',
+        instructions: 'Select your preferred bank to proceed with direct banking verification.'
+      }
+    ];
+    defaultPaymentMethods.forEach(pm => this.paymentMethods.set(pm.id, pm));
 
     // Seed default reviews
     initialReviews.forEach(rev => {
@@ -284,6 +325,7 @@ class DatabaseStore {
     let assignedRole = role;
     if (
       normalizedEmail.includes('admin') || 
+      normalizedEmail === 'rajasekaranmadhavan1@gmail.com' ||
       normalizedEmail === 'gayathirisathyamoorthy2006@gmail.com' ||
       normalizedEmail === 'jashikaraja05@gmail.com' ||
       normalizedEmail === 'jashikasuma@gmail.com' ||
@@ -324,6 +366,7 @@ class DatabaseStore {
     const passwordHash = bcrypt.hashSync('GoogleOAuthAuthenticatedUser@123', 10);
     const role: 'customer' | 'admin' = (
       normalizedEmail.includes('admin') || 
+      normalizedEmail === 'rajasekaranmadhavan1@gmail.com' ||
       normalizedEmail === 'gayathirisathyamoorthy2006@gmail.com' ||
       normalizedEmail === 'jashikaraja05@gmail.com' ||
       normalizedEmail === 'jashikasuma@gmail.com' ||
@@ -410,6 +453,7 @@ class DatabaseStore {
       // Auto-register account if user resets password on a new email
       const role = (
         normalizedEmail.includes('admin') || 
+        normalizedEmail === 'rajasekaranmadhavan1@gmail.com' ||
         normalizedEmail === 'gayathirisathyamoorthy2006@gmail.com' ||
         normalizedEmail === 'jashikaraja05@gmail.com' ||
         normalizedEmail === 'jashikasuma@gmail.com' ||
@@ -454,6 +498,37 @@ class DatabaseStore {
       });
     }
     return list;
+  }
+
+  // --- Payment Methods ---
+  async getPaymentMethods(onlyActive = false): Promise<PaymentMethodConfig[]> {
+    const list = Array.from(this.paymentMethods.values());
+    if (onlyActive) {
+      return list.filter(pm => pm.enabled);
+    }
+    return list;
+  }
+
+  async updatePaymentMethod(id: string, updates: Partial<PaymentMethodConfig>): Promise<PaymentMethodConfig> {
+    const existing = this.paymentMethods.get(id);
+    if (!existing) throw new Error('Payment method not found');
+    const updated = { ...existing, ...updates };
+    this.paymentMethods.set(id, updated);
+    return updated;
+  }
+
+  async createPaymentMethod(data: Omit<PaymentMethodConfig, 'id'>): Promise<PaymentMethodConfig> {
+    const id = 'pm-' + Date.now().toString(36);
+    const newMethod: PaymentMethodConfig = {
+      ...data,
+      id
+    };
+    this.paymentMethods.set(id, newMethod);
+    return newMethod;
+  }
+
+  async deletePaymentMethod(id: string): Promise<void> {
+    this.paymentMethods.delete(id);
   }
 
   // --- Categories ---

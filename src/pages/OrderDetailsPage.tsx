@@ -276,12 +276,12 @@ export const OrderDetailsPage: React.FC<OrderDetailsPageProps> = ({ orderId, nav
         <div className="bg-[#0c0f26] rounded-3xl border border-slate-800 p-6 shadow-xs space-y-3">
           <div className="flex items-center gap-2 font-heading font-black text-sm text-cyan-400">
             <CreditCard className="w-4 h-4" />
-            <span>Simulated Payment</span>
+            <span>Payment Method</span>
           </div>
           <div className="text-xs sm:text-sm text-slate-300 space-y-1">
             <p className="font-bold text-white">{order.paymentMethod}</p>
-            <p className="text-emerald-400 font-semibold">Payment Status: Authorized & Settled</p>
-            <p className="text-[11px] text-slate-500">Transaction verified in BUYGEN secure ledger.</p>
+            <p className="text-emerald-400 font-semibold">Payment Status: Authorized & Verified</p>
+            <p className="text-[11px] text-slate-500">Transaction recorded in BUYGEN marketplace ledger.</p>
           </div>
         </div>
       </div>

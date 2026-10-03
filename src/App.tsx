@@ -35,6 +35,7 @@ import { AdminProductsPage } from './pages/admin/AdminProductsPage.tsx';
 import { AdminCategoriesPage } from './pages/admin/AdminCategoriesPage.tsx';
 import { AdminOrdersPage } from './pages/admin/AdminOrdersPage.tsx';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage.tsx';
+import { AdminPaymentsPage } from './pages/admin/AdminPaymentsPage.tsx';
 
 function AppInner() {
   const { user, loading, logout } = useAuth();
@@ -46,7 +47,7 @@ function AppInner() {
     return window.location.pathname + window.location.search || '/';
   });
 
-  const [adminTab, setAdminTab] = useState<'dashboard' | 'products' | 'categories' | 'orders' | 'users'>('dashboard');
+  const [adminTab, setAdminTab] = useState<'dashboard' | 'products' | 'categories' | 'orders' | 'users' | 'payments'>('dashboard');
 
   useEffect(() => {
     const handlePopState = () => {
@@ -147,6 +148,7 @@ function AppInner() {
         {adminTab === 'products' && <AdminProductsPage />}
         {adminTab === 'categories' && <AdminCategoriesPage />}
         {adminTab === 'orders' && <AdminOrdersPage />}
+        {adminTab === 'payments' && <AdminPaymentsPage />}
         {adminTab === 'users' && <AdminUsersPage />}
       </AdminLayout>
     );

@@ -72,7 +72,7 @@ export const AdminOrdersPage: React.FC = () => {
       sortable: true,
       sortKey: (o) => o.id,
       cell: (o) => (
-        <span className="font-mono font-bold text-indigo-600">
+        <span className="font-mono font-bold text-cyan-400">
           {o.id}
         </span>
       )
@@ -84,7 +84,7 @@ export const AdminOrdersPage: React.FC = () => {
       sortKey: (o) => o.customerName,
       cell: (o) => (
         <div>
-          <p className="font-bold text-slate-900">{o.customerName}</p>
+          <p className="font-bold text-white">{o.customerName}</p>
           <p className="text-[11px] text-slate-400">{o.customerEmail}</p>
         </div>
       )
@@ -95,7 +95,7 @@ export const AdminOrdersPage: React.FC = () => {
       sortable: true,
       sortKey: (o) => new Date(o.createdAt),
       cell: (o) => (
-        <span className="text-slate-500 text-xs">
+        <span className="text-slate-400 text-xs">
           {new Date(o.createdAt).toLocaleDateString()}
         </span>
       )
@@ -114,11 +114,11 @@ export const AdminOrdersPage: React.FC = () => {
                 key={idx} 
                 src={item.image} 
                 alt="" 
-                className="inline-block h-7 w-7 rounded-lg ring-2 ring-white object-cover bg-slate-100" 
+                className="inline-block h-7 w-7 rounded-lg ring-2 ring-slate-900 object-cover bg-slate-950" 
               />
             ))}
           </div>
-          <span className="text-xs text-slate-600 font-semibold ml-1">
+          <span className="text-xs text-slate-300 font-semibold ml-1">
             {o.items.reduce((s, i) => s + i.quantity, 0)} units
           </span>
         </div>
@@ -130,7 +130,7 @@ export const AdminOrdersPage: React.FC = () => {
       sortable: true,
       sortKey: (o) => o.total,
       cell: (o) => (
-        <span className="font-mono font-bold text-slate-900">
+        <span className="font-mono font-bold text-white">
           ₹{o.total.toLocaleString('en-IN')}
         </span>
       )
@@ -142,7 +142,7 @@ export const AdminOrdersPage: React.FC = () => {
       sortKey: (o) => o.paymentMethod,
       hideOnTablet: true,
       cell: (o) => (
-        <span className="text-xs text-slate-500 font-medium">
+        <span className="text-xs text-slate-400 font-medium">
           {o.paymentMethod.replace(' Simulation', '')}
         </span>
       )
@@ -160,18 +160,18 @@ export const AdminOrdersPage: React.FC = () => {
           onClick={(e) => e.stopPropagation()}
           className={`p-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
             o.status === 'Delivered'
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
               : o.status === 'Shipped'
-              ? 'bg-cyan-50 text-cyan-800 border-cyan-200'
+              ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
               : o.status === 'Processing'
-              ? 'bg-purple-50 text-purple-800 border-purple-200'
+              ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
               : o.status === 'Confirmed'
-              ? 'bg-blue-50 text-blue-800 border-blue-200'
-              : 'bg-amber-50 text-amber-800 border-amber-200'
+              ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+              : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
           }`}
         >
           {statuses.map(s => (
-            <option key={s} value={s}>{s}</option>
+            <option key={s} value={s} className="bg-slate-900 text-white">{s}</option>
           ))}
         </select>
       )
@@ -185,7 +185,7 @@ export const AdminOrdersPage: React.FC = () => {
         <div className="text-right">
           <button
             onClick={() => setSelectedOrder(o)}
-            className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl font-bold text-xs cursor-pointer transition"
+            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/30 rounded-xl font-bold text-xs cursor-pointer transition"
           >
             Inspect
           </button>
@@ -212,9 +212,9 @@ export const AdminOrdersPage: React.FC = () => {
       value: paymentFilter,
       options: [
         { label: 'All Payment Methods', value: 'all' },
-        { label: 'UPI Simulation', value: 'upi' },
-        { label: 'Card Simulation', value: 'card' },
-        { label: 'Cash on Delivery', value: 'cash' }
+        { label: 'UPI / Dynamic QR', value: 'upi' },
+        { label: 'Card Payment', value: 'card' },
+        { label: 'Cash on Delivery', value: 'cod' }
       ],
       onChange: setPaymentFilter
     }
@@ -242,29 +242,29 @@ export const AdminOrdersPage: React.FC = () => {
         defaultSort={{ columnId: 'date', direction: 'desc' }}
         pageSize={8}
         renderCard={(o) => (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <span className="font-mono font-bold text-indigo-600 text-xs">{o.id}</span>
+          <div className="space-y-3 bg-[#0b0e24] p-4 rounded-2xl border border-slate-800 text-white">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <span className="font-mono font-bold text-cyan-400 text-xs">{o.id}</span>
               <span className="text-[11px] text-slate-400">{new Date(o.createdAt).toLocaleDateString()}</span>
             </div>
             <div>
-              <p className="font-bold text-slate-900 text-sm">{o.customerName}</p>
-              <p className="text-xs text-slate-500">{o.customerEmail}</p>
-              <p className="text-xs text-slate-500 mt-1">
-                Deliver to: <span className="font-semibold text-slate-700">{o.shippingAddress.city}, {o.shippingAddress.state}</span>
+              <p className="font-bold text-white text-sm">{o.customerName}</p>
+              <p className="text-xs text-slate-400">{o.customerEmail}</p>
+              <p className="text-xs text-slate-400 mt-1">
+                Deliver to: <span className="font-semibold text-slate-200">{o.shippingAddress.city}, {o.shippingAddress.state}</span>
               </p>
             </div>
-            <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-800">
               <div>
                 <span className="text-slate-400 text-[11px] block">Amount Paid</span>
-                <span className="font-mono font-bold text-slate-900 text-sm">₹{o.total.toLocaleString('en-IN')}</span>
+                <span className="font-mono font-bold text-white text-sm">₹{o.total.toLocaleString('en-IN')}</span>
               </div>
               <div>
                 <select
                   value={o.status}
                   disabled={updating}
                   onChange={(e) => handleStatusChange(o.id, e.target.value as OrderStatus)}
-                  className="p-1.5 rounded-lg text-xs font-bold border border-slate-200 bg-slate-50"
+                  className="p-1.5 rounded-lg text-xs font-bold border border-slate-700 bg-slate-900 text-white cursor-pointer"
                 >
                   {statuses.map(s => (
                     <option key={s} value={s}>{s}</option>
@@ -274,7 +274,7 @@ export const AdminOrdersPage: React.FC = () => {
             </div>
             <button
               onClick={() => setSelectedOrder(o)}
-              className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl cursor-pointer transition text-center"
+              className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-cyan-300 font-bold text-xs rounded-xl cursor-pointer transition text-center border border-cyan-500/30"
             >
               View Full Order Receipt & Address
             </button>
@@ -284,11 +284,11 @@ export const AdminOrdersPage: React.FC = () => {
 
       {/* Order Details Modal */}
       {selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl space-y-6 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="bg-[#0b0e24] border border-cyan-500/40 rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl space-y-6 max-h-[85vh] overflow-y-auto text-white">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div>
-                <h3 className="font-heading font-black text-xl text-slate-900">
+                <h3 className="font-heading font-black text-xl text-white">
                   Order {selectedOrder.id}
                 </h3>
                 <span className="text-xs text-slate-400">
@@ -297,24 +297,24 @@ export const AdminOrdersPage: React.FC = () => {
               </div>
               <button 
                 onClick={() => setSelectedOrder(null)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg cursor-pointer bg-slate-900"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Quick Status Updater inside Modal */}
-            <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 flex items-center justify-between">
+            <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 flex items-center justify-between">
               <div>
-                <span className="text-[11px] font-bold text-indigo-900 uppercase tracking-wider block">
+                <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block">
                   Change Dispatch Status
                 </span>
-                <span className="text-xs text-indigo-700">Advances customer tracking milestones in real time</span>
+                <span className="text-xs text-slate-400">Advances customer tracking milestones in real time</span>
               </div>
               <select
                 value={selectedOrder.status}
                 onChange={(e) => handleStatusChange(selectedOrder.id, e.target.value as OrderStatus)}
-                className="p-2 bg-white border border-indigo-200 rounded-xl text-xs font-bold text-indigo-900 shadow-xs cursor-pointer"
+                className="p-2 bg-[#0b0e24] border border-amber-500/40 rounded-xl text-xs font-bold text-amber-300 shadow-xs cursor-pointer"
               >
                 {statuses.map(s => (
                   <option key={s} value={s}>{s}</option>
@@ -327,15 +327,15 @@ export const AdminOrdersPage: React.FC = () => {
               <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">
                 Purchased Electronics ({selectedOrder.items.reduce((s, i) => s + i.quantity, 0)})
               </h4>
-              <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto pr-1">
+              <div className="divide-y divide-slate-800 max-h-48 overflow-y-auto pr-1">
                 {selectedOrder.items.map((item) => (
                   <div key={item.productId} className="py-2.5 flex items-center justify-between gap-3 text-xs">
-                    <img src={item.image} alt="" className="w-10 h-10 rounded-lg object-cover bg-slate-100 shrink-0 border border-slate-200" />
+                    <img src={item.image} alt="" className="w-10 h-10 rounded-lg object-cover bg-slate-900 shrink-0 border border-slate-800" />
                     <div className="truncate flex-1">
-                      <p className="font-bold text-slate-900 truncate">{item.name}</p>
+                      <p className="font-bold text-white truncate">{item.name}</p>
                       <p className="text-[10px] text-slate-400">Qty: {item.quantity} × ₹{item.price.toLocaleString('en-IN')}</p>
                     </div>
-                    <span className="font-bold font-mono text-slate-900">
+                    <span className="font-bold font-mono text-cyan-300">
                       ₹{(item.price * item.quantity).toLocaleString('en-IN')}
                     </span>
                   </div>
@@ -344,20 +344,20 @@ export const AdminOrdersPage: React.FC = () => {
             </div>
 
             {/* Address */}
-            <div className="p-4 bg-slate-50 rounded-2xl space-y-1 text-xs text-slate-600">
-              <div className="flex items-center gap-1.5 font-bold text-slate-900 mb-1">
-                <MapPin className="w-3.5 h-3.5 text-indigo-600" />
+            <div className="p-4 bg-slate-950 rounded-2xl space-y-1 text-xs text-slate-400 border border-slate-800">
+              <div className="flex items-center gap-1.5 font-bold text-white mb-1">
+                <MapPin className="w-3.5 h-3.5 text-cyan-400" />
                 <span>Shipping Destination Address</span>
               </div>
-              <p className="font-semibold text-slate-800">{selectedOrder.shippingAddress.fullName} ({selectedOrder.shippingAddress.phone})</p>
+              <p className="font-semibold text-slate-200">{selectedOrder.shippingAddress.fullName} ({selectedOrder.shippingAddress.phone})</p>
               <p>{selectedOrder.shippingAddress.address}</p>
               <p>{selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state} - {selectedOrder.shippingAddress.pincode}</p>
             </div>
 
             {/* Totals */}
-            <div className="pt-2 border-t flex justify-between items-baseline text-sm">
-              <span className="font-bold text-slate-900">Total Order Amount</span>
-              <span className="font-black text-xl text-indigo-600 font-mono">
+            <div className="pt-2 border-t border-slate-800 flex justify-between items-baseline text-sm">
+              <span className="font-bold text-white">Total Order Amount</span>
+              <span className="font-black text-xl text-cyan-300 font-mono">
                 ₹{selectedOrder.total.toLocaleString('en-IN')}
               </span>
             </div>

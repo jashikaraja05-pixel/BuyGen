@@ -8,7 +8,8 @@ import {
   Plus, 
   Check, 
   AlertCircle,
-  X
+  X,
+  Cpu
 } from 'lucide-react';
 import type { Product } from '../types/index.ts';
 import { useCompare } from '../context/CompareContext.tsx';
@@ -58,20 +59,20 @@ export const ComparePage: React.FC<ComparePageProps> = ({ navigate }) => {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 text-white">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-1">
+          <div className="flex items-center gap-2 text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-1">
             <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span>Side-by-Side Spec Comparison</span>
+            <span>Side-by-Side Hardware Comparison</span>
           </div>
-          <h1 className="font-heading font-black text-3xl text-slate-900">
+          <h1 className="font-heading font-black text-3xl text-white">
             Compare Electronics ({compareProducts.length}/3)
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Select up to 3 consumer electronics products to compare technical specs, pricing, and AI verdict.
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+            Select up to 3 consumer devices to compare hardware specs, pricing, and hardware match.
           </p>
         </div>
 
@@ -79,7 +80,7 @@ export const ComparePage: React.FC<ComparePageProps> = ({ navigate }) => {
           {compareProducts.length < 3 && (
             <button
               onClick={() => setSelectorOpen(true)}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer"
+              className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-cyan-500/20 cursor-pointer transition"
             >
               <Plus className="w-4 h-4" />
               <span>Add Product</span>
@@ -89,7 +90,7 @@ export const ComparePage: React.FC<ComparePageProps> = ({ navigate }) => {
           {compareProducts.length > 0 && (
             <button
               onClick={clearCompare}
-              className="px-3.5 py-2 border border-slate-200 text-slate-600 hover:text-rose-600 hover:border-rose-200 font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1"
+              className="px-3.5 py-2 border border-slate-800 hover:border-rose-500/40 text-slate-400 hover:text-rose-400 bg-slate-900 font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Clear</span>
@@ -98,19 +99,19 @@ export const ComparePage: React.FC<ComparePageProps> = ({ navigate }) => {
         </div>
       </div>
 
-      {/* When less than 2 products are selected */}
+      {/* When 0 products are selected */}
       {compareProducts.length === 0 ? (
-        <div className="p-16 bg-white rounded-3xl border border-slate-200 text-center space-y-4 shadow-xs">
-          <div className="w-16 h-16 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+        <div className="p-16 bg-[#0b0e24] rounded-3xl border border-slate-800 text-center space-y-4 shadow-xl">
+          <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center mx-auto border border-cyan-500/20">
             <SlidersHorizontal className="w-8 h-8" />
           </div>
-          <h3 className="font-heading font-bold text-slate-900 text-lg">No Products in Comparison</h3>
-          <p className="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto">
+          <h3 className="font-heading font-bold text-white text-lg">No Products in Comparison</h3>
+          <p className="text-xs sm:text-sm text-slate-400 max-w-sm mx-auto">
             Click the compare button on any product card or click "Add Product" above to begin your technical spec comparison.
           </p>
           <button
             onClick={() => setSelectorOpen(true)}
-            className="px-6 py-2.5 bg-indigo-600 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer"
+            className="px-6 py-2.5 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-slate-950 font-black text-xs rounded-xl shadow-md transition cursor-pointer"
           >
             Select Products to Compare
           </button>
@@ -119,10 +120,10 @@ export const ComparePage: React.FC<ComparePageProps> = ({ navigate }) => {
         <div className="space-y-8">
           
           {/* Comparison Matrix Table */}
-          <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-x-auto">
+          <div className="bg-[#0b0e24] rounded-3xl border border-slate-800 shadow-xl overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/50">
+                <tr className="border-b border-slate-800 bg-slate-950/60">
                   <th className="p-4 sm:p-6 w-1/4 text-xs font-bold uppercase tracking-wider text-slate-400">
                     Product Specification
                   </th>
@@ -131,13 +132,13 @@ export const ComparePage: React.FC<ComparePageProps> = ({ navigate }) => {
                       <div className="relative space-y-3">
                         <button
                           onClick={() => removeFromCompare(prod.id)}
-                          className="absolute -top-2 -right-2 p-1 bg-slate-100 hover:bg-rose-100 text-slate-400 hover:text-rose-600 rounded-full transition cursor-pointer"
+                          className="absolute -top-2 -right-2 p-1 bg-slate-900 hover:bg-rose-950/80 text-slate-400 hover:text-rose-400 rounded-full transition cursor-pointer border border-slate-800"
                           title="Remove from comparison"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
                         
-                        <div className="w-24 h-24 rounded-xl bg-slate-100 overflow-hidden mx-auto border border-slate-200">
+                        <div className="w-24 h-24 rounded-xl bg-slate-950 overflow-hidden mx-auto border border-slate-800">
                           <img src={prod.images[0]} alt="" className="w-full h-full object-cover" />
                         </div>
 
@@ -145,11 +146,11 @@ export const ComparePage: React.FC<ComparePageProps> = ({ navigate }) => {
                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{prod.brand}</span>
                           <h4 
                             onClick={() => navigate(`/products/${prod.id}`)}
-                            className="font-heading font-bold text-xs sm:text-sm text-slate-900 hover:text-indigo-600 cursor-pointer line-clamp-2"
+                            className="font-heading font-bold text-xs sm:text-sm text-white hover:text-cyan-400 cursor-pointer line-clamp-2 transition"
                           >
                             {prod.name}
                           </h4>
-                          <p className="font-heading font-black text-base text-slate-900 mt-1">
+                          <p className="font-heading font-black text-base text-cyan-300 mt-1">
                             ₹{prod.price.toLocaleString('en-IN')}
                           </p>
                         </div>
@@ -157,7 +158,7 @@ export const ComparePage: React.FC<ComparePageProps> = ({ navigate }) => {
                         <button
                           onClick={() => addToCart(prod.id, 1)}
                           disabled={prod.stock <= 0}
-                          className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
+                          className="w-full py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 disabled:bg-slate-800 disabled:text-slate-600 text-slate-950 font-black text-xs rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
                         >
                           <ShoppingCart className="w-3.5 h-3.5" />
                           <span>Add to Cart</span>
@@ -167,10 +168,10 @@ export const ComparePage: React.FC<ComparePageProps> = ({ navigate }) => {
                   ))}
                   {/* Empty placeholder slot if < 3 */}
                   {compareProducts.length < 3 && (
-                    <th className="p-4 sm:p-6 w-1/4 align-middle text-center bg-slate-50/30 border-l border-dashed border-slate-200">
+                    <th className="p-4 sm:p-6 w-1/4 align-middle text-center bg-slate-950/20 border-l border-dashed border-slate-800">
                       <button
                         onClick={() => setSelectorOpen(true)}
-                        className="p-6 border-2 border-dashed border-slate-300 hover:border-indigo-400 rounded-2xl text-slate-400 hover:text-indigo-600 flex flex-col items-center gap-2 mx-auto cursor-pointer transition"
+                        className="p-6 border-2 border-dashed border-slate-800 hover:border-cyan-500/50 rounded-2xl text-slate-400 hover:text-cyan-300 flex flex-col items-center gap-2 mx-auto cursor-pointer transition"
                       >
                         <Plus className="w-6 h-6" />
                         <span className="text-xs font-bold">Add 3rd Product</span>
@@ -180,26 +181,26 @@ export const ComparePage: React.FC<ComparePageProps> = ({ navigate }) => {
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
+              <tbody className="divide-y divide-slate-800 text-xs sm:text-sm font-medium">
                 
                 {/* Brand row */}
                 <tr>
-                  <td className="p-4 sm:p-5 font-bold text-slate-500 bg-slate-50/50">Brand</td>
+                  <td className="p-4 sm:p-5 font-bold text-slate-400 bg-slate-950/40">Brand</td>
                   {compareProducts.map(p => (
-                    <td key={p.id} className="p-4 sm:p-5 font-semibold text-slate-900">{p.brand}</td>
+                    <td key={p.id} className="p-4 sm:p-5 font-semibold text-white">{p.brand}</td>
                   ))}
                   {compareProducts.length < 3 && <td></td>}
                 </tr>
 
                 {/* Rating row */}
                 <tr>
-                  <td className="p-4 sm:p-5 font-bold text-slate-500 bg-slate-50/50">Customer Rating</td>
+                  <td className="p-4 sm:p-5 font-bold text-slate-400 bg-slate-950/40">Customer Rating</td>
                   {compareProducts.map(p => (
                     <td key={p.id} className="p-4 sm:p-5">
-                      <div className="flex items-center gap-1 font-bold text-amber-800">
+                      <div className="flex items-center gap-1 font-bold text-amber-400">
                         <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
                         <span>{p.rating} / 5.0</span>
-                        <span className="text-slate-400 font-normal">({p.reviewCount})</span>
+                        <span className="text-slate-500 font-normal">({p.reviewCount})</span>
                       </div>
                     </td>
                   ))}
@@ -208,15 +209,15 @@ export const ComparePage: React.FC<ComparePageProps> = ({ navigate }) => {
 
                 {/* Stock row */}
                 <tr>
-                  <td className="p-4 sm:p-5 font-bold text-slate-500 bg-slate-50/50">Availability</td>
+                  <td className="p-4 sm:p-5 font-bold text-slate-400 bg-slate-950/40">Availability</td>
                   {compareProducts.map(p => (
                     <td key={p.id} className="p-4 sm:p-5">
                       {p.stock > 0 ? (
-                        <span className="text-emerald-600 font-bold flex items-center gap-1">
+                        <span className="text-emerald-400 font-bold flex items-center gap-1">
                           <Check className="w-3.5 h-3.5" /> In Stock ({p.stock})
                         </span>
                       ) : (
-                        <span className="text-rose-600 font-bold">Out of Stock</span>
+                        <span className="text-rose-400 font-bold">Out of Stock</span>
                       )}
                     </td>
                   ))}
@@ -226,9 +227,9 @@ export const ComparePage: React.FC<ComparePageProps> = ({ navigate }) => {
                 {/* Dynamic Spec Rows */}
                 {allSpecKeys.map((key) => (
                   <tr key={key}>
-                    <td className="p-4 sm:p-5 font-bold text-slate-500 bg-slate-50/50">{key}</td>
+                    <td className="p-4 sm:p-5 font-bold text-slate-400 bg-slate-950/40">{key}</td>
                     {compareProducts.map(p => (
-                      <td key={p.id} className="p-4 sm:p-5 text-slate-800 font-medium">
+                      <td key={p.id} className="p-4 sm:p-5 text-slate-300">
                         {p.specifications[key] || '—'}
                       </td>
                     ))}
@@ -240,12 +241,12 @@ export const ComparePage: React.FC<ComparePageProps> = ({ navigate }) => {
             </table>
           </div>
 
-          {/* AI Comparison Analysis Section */}
+          {/* Technical Comparison Analysis Section */}
           {analysis && (
-            <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-3xl p-6 sm:p-8 space-y-4 border border-indigo-900 shadow-xl">
+            <div className="bg-[#0b0e24] text-white rounded-3xl p-6 sm:p-8 space-y-4 border border-cyan-500/30 shadow-xl">
               <div className="flex items-center gap-2 text-cyan-300 text-xs font-bold uppercase tracking-wider">
-                <Sparkles className="w-4 h-4 text-cyan-400" />
-                <span>AI Technical Comparison & Verdict</span>
+                <Cpu className="w-4 h-4 text-cyan-400" />
+                <span>Technical Comparison Verdict</span>
               </div>
 
               <div className="text-xs sm:text-sm text-slate-200 leading-relaxed font-normal whitespace-pre-line space-y-2">
@@ -259,14 +260,14 @@ export const ComparePage: React.FC<ComparePageProps> = ({ navigate }) => {
 
       {/* Product Selector Modal */}
       {selectorOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between pb-3 border-b">
-              <h3 className="font-heading font-bold text-base text-slate-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="bg-[#0b0e24] border border-cyan-500/40 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[80vh] flex flex-col text-white">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h3 className="font-heading font-black text-base text-white">
                 Choose Product to Compare
               </h3>
-              <button onClick={() => setSelectorOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
+              <button onClick={() => setSelectorOpen(false)} className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-900 cursor-pointer">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -283,22 +284,24 @@ export const ComparePage: React.FC<ComparePageProps> = ({ navigate }) => {
                       }
                     }}
                     className={`p-3 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition ${
-                      inList ? 'bg-slate-100 border-slate-200 opacity-60 cursor-not-allowed' : 'hover:border-indigo-300 bg-white hover:bg-slate-50'
+                      inList 
+                        ? 'bg-slate-950/60 border-slate-800/80 opacity-50 cursor-not-allowed' 
+                        : 'hover:border-cyan-500/50 bg-slate-950 hover:bg-slate-900 border-slate-800'
                     }`}
                   >
                     <div className="flex items-center gap-3 truncate">
-                      <img src={p.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover bg-slate-100 shrink-0" />
+                      <img src={p.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover bg-slate-900 shrink-0 border border-slate-800" />
                       <div className="truncate">
-                        <p className="font-bold text-xs text-slate-900 truncate">{p.name}</p>
+                        <p className="font-bold text-xs text-white truncate">{p.name}</p>
                         <p className="text-[10px] text-slate-400">{p.brand} • {p.categoryName}</p>
                       </div>
                     </div>
 
                     <div className="text-right shrink-0">
-                      <span className="font-heading font-bold text-xs text-slate-900 block">
+                      <span className="font-heading font-bold text-xs text-cyan-300 block">
                         ₹{p.price.toLocaleString('en-IN')}
                       </span>
-                      <span className="text-[10px] font-semibold text-indigo-600">
+                      <span className="text-[10px] font-bold text-cyan-400">
                         {inList ? 'Selected' : '+ Select'}
                       </span>
                     </div>

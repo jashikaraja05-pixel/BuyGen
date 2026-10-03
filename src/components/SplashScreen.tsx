@@ -63,7 +63,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
             Next-Gen Shopping, Smarter Choices.
           </p>
           <p className="text-xs text-slate-400 max-w-xs mx-auto">
-            High-Performance Consumer Electronics with AI Smart Tech Advisor
+            High-Performance Consumer Electronics with Smart Tech Advisor
           </p>
         </div>
 
