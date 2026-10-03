@@ -52,30 +52,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setAdminTab, nav
         </p>
       </div>
 
-      {/* Top 4 KPI Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Top 5 KPI Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         
         {/* Total Revenue */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-2">
+        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between text-emerald-600">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Revenue</span>
             <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center font-bold">
               <IndianRupee className="w-5 h-5" />
             </div>
           </div>
-          <h3 className="font-heading font-black text-2xl sm:text-3xl text-slate-900">
+          <h3 className="font-heading font-black text-2xl text-slate-900">
             ₹{metrics.totalRevenue.toLocaleString('en-IN')}
           </h3>
           <p className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
             <TrendingUp className="w-3.5 h-3.5" />
-            <span>Simulated sales volume</span>
+            <span>Store sales volume</span>
           </p>
         </div>
 
         {/* Total Orders */}
         <div 
           onClick={() => setAdminTab('orders')}
-          className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-2 hover:border-indigo-300 transition cursor-pointer"
+          className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs space-y-2 hover:border-indigo-300 transition cursor-pointer"
         >
           <div className="flex items-center justify-between text-indigo-600">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Orders</span>
@@ -83,49 +83,68 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setAdminTab, nav
               <ShoppingBag className="w-5 h-5" />
             </div>
           </div>
-          <h3 className="font-heading font-black text-2xl sm:text-3xl text-slate-900">
+          <h3 className="font-heading font-black text-2xl text-slate-900">
             {metrics.totalOrders}
           </h3>
           <p className="text-[11px] text-slate-500">
-            All customer shipments & orders
+            Customer shipments
           </p>
         </div>
 
         {/* Active Products */}
         <div 
           onClick={() => setAdminTab('products')}
-          className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-2 hover:border-cyan-300 transition cursor-pointer"
+          className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs space-y-2 hover:border-cyan-300 transition cursor-pointer"
         >
           <div className="flex items-center justify-between text-cyan-600">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Active Products</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Products</span>
             <div className="w-10 h-10 rounded-xl bg-cyan-50 flex items-center justify-center font-bold">
               <Package className="w-5 h-5" />
             </div>
           </div>
-          <h3 className="font-heading font-black text-2xl sm:text-3xl text-slate-900">
+          <h3 className="font-heading font-black text-2xl text-slate-900">
             {metrics.totalProducts}
           </h3>
           <p className="text-[11px] text-slate-500">
-            Across 10 electronics categories
+            Live catalog items
+          </p>
+        </div>
+
+        {/* Total Users */}
+        <div 
+          onClick={() => setAdminTab('users')}
+          className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs space-y-2 hover:border-purple-300 transition cursor-pointer"
+        >
+          <div className="flex items-center justify-between text-purple-600">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Registered Users</span>
+            <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center font-bold">
+              <Users className="w-5 h-5" />
+            </div>
+          </div>
+          <h3 className="font-heading font-black text-2xl text-slate-900">
+            {metrics.totalUsers}
+          </h3>
+          <p className="text-[11px] text-purple-700 font-semibold">
+            Customers & admins
           </p>
         </div>
 
         {/* Low Stock Alerts */}
         <div 
           onClick={() => setAdminTab('products')}
-          className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-2 hover:border-amber-300 transition cursor-pointer"
+          className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs space-y-2 hover:border-amber-300 transition cursor-pointer"
         >
           <div className="flex items-center justify-between text-amber-600">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Low Stock Alert</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Low Stock</span>
             <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center font-bold">
               <AlertTriangle className="w-5 h-5" />
             </div>
           </div>
-          <h3 className="font-heading font-black text-2xl sm:text-3xl text-amber-600">
+          <h3 className="font-heading font-black text-2xl text-amber-600">
             {metrics.lowStockCount}
           </h3>
           <p className="text-[11px] text-amber-700 font-semibold">
-            Products with ≤ 10 units in warehouse
+            Stock ≤ 10 units
           </p>
         </div>
 

@@ -75,8 +75,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
     try {
       setGoogleLoading(true);
       setError(null);
-      await loginWithGoogle('jashikahack@gmail.com', 'Jashika Hack');
-      navigate('/');
+      const chosenEmail = activeTab === 'admin' ? 'jashikaraja05@gmail.com' : 'customer@buygen.com';
+      const chosenName = activeTab === 'admin' ? 'Jashika Raja (Admin)' : 'Customer User';
+      await loginWithGoogle(chosenEmail, chosenName);
+      if (activeTab === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     } catch (err: any) {
       setError(err.message || 'Google sign-in failed.');
     } finally {

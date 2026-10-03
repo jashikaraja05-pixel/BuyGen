@@ -116,8 +116,23 @@ export interface ProductFilters {
   maxPrice?: number;
   minRating?: number;
   inStockOnly?: boolean;
+  stockStatus?: 'all' | 'instock' | 'lowstock' | 'outofstock';
   search?: string;
   sortBy?: 'price-asc' | 'price-desc' | 'rating' | 'newest' | 'popularity';
+  sortField?: string;
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
+}
+
+export interface OrderFilters {
+  search?: string;
+  status?: string;
+  paymentMethod?: string;
+  sortField?: string;
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
 }
 
 export interface AdminMetrics {

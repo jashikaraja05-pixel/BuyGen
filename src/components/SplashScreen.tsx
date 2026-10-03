@@ -34,7 +34,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
       {/* Top Tagline */}
       <div className="relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900/90 border border-cyan-500/30 text-xs font-semibold text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
         <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
-        <span>INFYHACKATHON 2.0 • OFFICIAL CONSUMER ELECTRONICS</span>
+        <span>BUYGEN ELECTRONICS • NEXT-GEN SHOPPING, SMARTER CHOICES</span>
       </div>
 
       {/* Center 3D Brand Logo & Branding */}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ShieldAlert } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext.tsx';
 import { CartProvider } from './context/CartContext.tsx';
 import { WishlistProvider } from './context/WishlistContext.tsx';
@@ -37,7 +38,7 @@ import { AdminOrdersPage } from './pages/admin/AdminOrdersPage.tsx';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage.tsx';
 
 function AppInner() {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const [splashDone, setSplashDone] = useState<boolean>(() => {
     return sessionStorage.getItem('buygen_splash_passed') === 'true';
   });
@@ -100,8 +101,43 @@ function AppInner() {
   const [pathPart, searchPart] = currentPath.split('?');
   const searchParams = new URLSearchParams(searchPart || '');
 
-  // Admin Portal Routes
+  // Admin Portal Routes with Strict Role-Based Access Control
   if (pathPart.startsWith('/admin')) {
+    if (user.role !== 'admin') {
+      return (
+        <div className="min-h-screen bg-[#070814] flex flex-col items-center justify-center p-6 text-center text-white space-y-6">
+          <div className="w-20 h-20 rounded-3xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 shadow-xl shadow-rose-500/10 animate-pulse">
+            <ShieldAlert className="w-10 h-10" />
+          </div>
+          <div className="space-y-2 max-w-md">
+            <h2 className="font-heading font-black text-2xl sm:text-3xl text-white">
+              Access Denied: Admin Only
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+              Your current account (<strong className="text-slate-200">{user.email}</strong>) is registered as a <span className="text-cyan-400 font-bold">Store Customer</span>. Access to the BUYGEN Store Administrator Console is restricted to authorized platform owners.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <button
+              onClick={() => navigate('/')}
+              className="px-6 py-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white font-bold text-xs rounded-xl transition cursor-pointer"
+            >
+              Return to Customer Store
+            </button>
+            <button
+              onClick={async () => {
+                await logout();
+                navigate('/login');
+              }}
+              className="px-6 py-3 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-500/20 hover:opacity-95 transition cursor-pointer"
+            >
+              Sign In as Administrator
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <AdminLayout
         currentAdminTab={adminTab}

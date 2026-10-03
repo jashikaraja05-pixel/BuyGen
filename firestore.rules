@@ -12,6 +12,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && (
+        request.auth.token.email == "jashikaraja05@gmail.com" ||
         request.auth.token.email == "jashikahack@gmail.com" ||
         request.auth.token.admin == true ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
@@ -21,6 +22,12 @@ service cloud.firestore {
     // Default deny
     match /{document=**} {
       allow read, write: if false;
+    }
+
+    // Connection validation
+    match /test/{docId} {
+      allow read: if true;
+      allow write: if false;
     }
 
     // Admin collection

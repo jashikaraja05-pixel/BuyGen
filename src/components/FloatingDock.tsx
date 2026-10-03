@@ -61,7 +61,7 @@ export const FloatingDock: React.FC<FloatingDockProps> = ({ currentPath, navigat
             ? 'bg-indigo-600 text-white'
             : 'text-slate-300 hover:text-white hover:bg-slate-800'
         }`}
-        title="Shopping Cart (ஆட் கார்ட்)"
+        title="Shopping Cart"
       >
         <ShoppingCart className="w-3.5 h-3.5" />
         <span className="hidden sm:inline">Cart</span>
@@ -80,7 +80,7 @@ export const FloatingDock: React.FC<FloatingDockProps> = ({ currentPath, navigat
             ? 'bg-rose-600 text-white'
             : 'text-slate-300 hover:text-white hover:bg-slate-800'
         }`}
-        title="Wishlist (விஷ் லிஸ்ட்)"
+        title="Wishlist"
       >
         <Heart className="w-3.5 h-3.5 text-rose-400" />
         <span className="hidden sm:inline">Wishlist</span>

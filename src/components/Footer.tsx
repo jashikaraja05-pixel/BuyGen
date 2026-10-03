@@ -81,9 +81,9 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
               The premier electronics marketplace delivering high-performance computing, audio fidelity, and smart gadgets with AI-guided buying advice.
             </p>
             <div className="mt-4 flex items-center gap-3">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-indigo-950/80 text-indigo-300 border border-indigo-800">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-indigo-950/80 text-cyan-300 border border-cyan-800">
                 <Cpu className="w-3 h-3 text-cyan-400" />
-                INFYHACKATHON 2.0
+                Verified Electronics Hub
               </span>
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-800">
                 <Award className="w-3 h-3 text-emerald-400" />

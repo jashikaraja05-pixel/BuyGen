@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, deleteDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json' with { type: 'json' };
 import { 
   User, 
@@ -15,6 +15,7 @@ import {
   OrderStatus 
 } from '../types/index.ts';
 import { initialCategories, initialProducts, initialReviews } from './seedData.ts';
+import { getExpandedSearchTokens } from '../lib/spellingNormalizer.ts';
 
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
@@ -77,6 +78,15 @@ class DatabaseStore {
       passwordHash: adminPassHash,
     };
 
+    const runtimeAdmin: StoredUser = {
+      id: 'admin-runtime',
+      name: 'Jashika Raja',
+      email: 'jashikaraja05@gmail.com',
+      role: 'admin',
+      createdAt: '2026-09-01T00:00:00.000Z',
+      passwordHash: adminPassHash,
+    };
+
     const defaultCustomer: StoredUser = {
       id: 'cust-1',
       name: 'Alex Johnson',
@@ -88,6 +98,7 @@ class DatabaseStore {
 
     this.users.set(defaultAdmin.email.toLowerCase(), defaultAdmin);
     this.users.set(ghpAdmin.email.toLowerCase(), ghpAdmin);
+    this.users.set(runtimeAdmin.email.toLowerCase(), runtimeAdmin);
     this.users.set(defaultCustomer.email.toLowerCase(), defaultCustomer);
 
     // Seed realistic completed & in-transit orders for rich initial admin dashboard stats
@@ -203,10 +214,10 @@ class DatabaseStore {
 
   private async syncFirestoreInit() {
     try {
-      const docRef = doc(firestore, 'system', 'status');
-      await setDoc(docRef, { online: true, lastBoot: new Date().toISOString() }, { merge: true });
+      // Test read connection according to Firestore guidelines without write stream
+      await getDocFromServer(doc(firestore, 'test', 'connection'));
     } catch {
-      // Offline fallback is active and fully functional
+      // In-memory store handles all application persistence reliably
     }
   }
 
@@ -229,19 +240,6 @@ class DatabaseStore {
     };
 
     this.users.set(normalizedEmail, newUser);
-
-    // Async persist to Firestore if accessible
-    try {
-      await setDoc(doc(firestore, 'users', id), {
-        id,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role,
-        createdAt: newUser.createdAt
-      });
-    } catch (e) {
-      // memory store already has it
-    }
 
     const { passwordHash: _, ...userSafe } = newUser;
     return userSafe;
@@ -268,15 +266,6 @@ class DatabaseStore {
     };
 
     this.users.set(normalizedEmail, newUser);
-    try {
-      await setDoc(doc(firestore, 'users', id), {
-        id,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role,
-        createdAt: newUser.createdAt
-      });
-    } catch (e) {}
 
     const { passwordHash: _, ...userSafe } = newUser;
     return userSafe;
@@ -363,19 +352,21 @@ class DatabaseStore {
   async getProducts(filters: ProductFilters = {}): Promise<{ products: Product[]; total: number }> {
     let result = Array.from(this.products.values());
 
-    // Search query
+    // Search query with silent typo normalization (e.g. "phene" -> "phone")
     if (filters.search && filters.search.trim()) {
-      const q = filters.search.toLowerCase().trim();
-      result = result.filter(p => 
-        p.name.toLowerCase().includes(q) ||
-        p.brand.toLowerCase().includes(q) ||
-        p.categoryName.toLowerCase().includes(q) ||
-        p.subcategory.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q) ||
-        Object.entries(p.specifications).some(([k, v]) => 
-          k.toLowerCase().includes(q) || v.toLowerCase().includes(q)
-        )
-      );
+      const expandedTokens = getExpandedSearchTokens(filters.search);
+      result = result.filter(p => {
+        const fullProductText = [
+          p.name,
+          p.brand,
+          p.categoryName,
+          p.subcategory,
+          p.description,
+          ...Object.entries(p.specifications).flat()
+        ].join(' ').toLowerCase();
+
+        return expandedTokens.some(token => fullProductText.includes(token));
+      });
     }
 
     // Category filter (by id or slug or name)
@@ -424,8 +415,63 @@ class DatabaseStore {
       result = result.filter(p => p.stock > 0);
     }
 
-    // Sorting
-    if (filters.sortBy) {
+    // Stock Status Filter (for admin table input filter)
+    if (filters.stockStatus && filters.stockStatus !== 'all') {
+      if (filters.stockStatus === 'instock') {
+        result = result.filter(p => p.stock > 10);
+      } else if (filters.stockStatus === 'lowstock') {
+        result = result.filter(p => p.stock > 0 && p.stock <= 10);
+      } else if (filters.stockStatus === 'outofstock') {
+        result = result.filter(p => p.stock === 0);
+      }
+    }
+
+    // Column header sorting
+    if (filters.sortField) {
+      const field = filters.sortField;
+      const order = filters.sortOrder || 'asc';
+
+      result.sort((a, b) => {
+        let valA: any;
+        let valB: any;
+
+        if (field === 'item' || field === 'name') {
+          valA = a.name.toLowerCase();
+          valB = b.name.toLowerCase();
+        } else if (field === 'category') {
+          valA = (a.categoryName || '').toLowerCase();
+          valB = (b.categoryName || '').toLowerCase();
+        } else if (field === 'price') {
+          valA = a.price;
+          valB = b.price;
+        } else if (field === 'discount') {
+          valA = a.discount || 0;
+          valB = b.discount || 0;
+        } else if (field === 'stock') {
+          valA = a.stock;
+          valB = b.stock;
+        } else if (field === 'rating') {
+          valA = a.rating;
+          valB = b.rating;
+        } else if (field === 'createdAt') {
+          valA = new Date(a.createdAt).getTime();
+          valB = new Date(b.createdAt).getTime();
+        } else {
+          valA = (a as any)[field];
+          valB = (b as any)[field];
+        }
+
+        if (valA === undefined || valA === null) valA = '';
+        if (valB === undefined || valB === null) valB = '';
+
+        if (typeof valA === 'string' && typeof valB === 'string') {
+          return order === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+
+        return order === 'asc' ? (valA > valB ? 1 : valA < valB ? -1 : 0) : (valA < valB ? 1 : valA > valB ? -1 : 0);
+      });
+    } else if (filters.sortBy) {
+      // Legacy preset sorting
       switch (filters.sortBy) {
         case 'price-asc':
           result.sort((a, b) => a.price - b.price);
@@ -445,7 +491,15 @@ class DatabaseStore {
       }
     }
 
-    return { products: result, total: result.length };
+    const total = result.length;
+
+    // Server-side pagination
+    if (filters.page && filters.limit) {
+      const start = (filters.page - 1) * filters.limit;
+      result = result.slice(start, start + filters.limit);
+    }
+
+    return { products: result, total };
   }
 
   async getProductById(id: string): Promise<Product | null> {
@@ -743,9 +797,95 @@ class DatabaseStore {
     return list;
   }
 
-  async getAllOrders(): Promise<Order[]> {
-    return Array.from(this.orders.values())
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  async getAllOrders(filters?: {
+    search?: string;
+    status?: string;
+    paymentMethod?: string;
+    sortField?: string;
+    sortOrder?: 'asc' | 'desc';
+    page?: number;
+    limit?: number;
+  }): Promise<{ orders: Order[]; total: number }> {
+    let result = Array.from(this.orders.values());
+
+    // Search query filter (Order ID, customer, email, city, items)
+    if (filters?.search && filters.search.trim()) {
+      const q = filters.search.toLowerCase().trim();
+      result = result.filter(o => 
+        o.id.toLowerCase().includes(q) ||
+        o.customerName.toLowerCase().includes(q) ||
+        o.customerEmail.toLowerCase().includes(q) ||
+        o.customerPhone.toLowerCase().includes(q) ||
+        o.shippingAddress.city.toLowerCase().includes(q) ||
+        o.shippingAddress.state.toLowerCase().includes(q) ||
+        o.shippingAddress.pincode.toLowerCase().includes(q) ||
+        o.items.some(i => i.name.toLowerCase().includes(q) || i.brand.toLowerCase().includes(q))
+      );
+    }
+
+    // Status filter
+    if (filters?.status && filters.status !== 'all') {
+      result = result.filter(o => o.status.toLowerCase() === filters.status!.toLowerCase());
+    }
+
+    // Payment method filter
+    if (filters?.paymentMethod && filters.paymentMethod !== 'all') {
+      result = result.filter(o => o.paymentMethod.toLowerCase().includes(filters.paymentMethod!.toLowerCase()));
+    }
+
+    // Server-side column header sorting
+    const sortField = filters?.sortField || 'date';
+    const sortOrder = filters?.sortOrder || 'desc';
+
+    result.sort((a, b) => {
+      let valA: any;
+      let valB: any;
+
+      if (sortField === 'orderId' || sortField === 'id') {
+        valA = a.id;
+        valB = b.id;
+      } else if (sortField === 'customer' || sortField === 'customerName') {
+        valA = a.customerName.toLowerCase();
+        valB = b.customerName.toLowerCase();
+      } else if (sortField === 'date' || sortField === 'createdAt') {
+        valA = new Date(a.createdAt).getTime();
+        valB = new Date(b.createdAt).getTime();
+      } else if (sortField === 'items') {
+        valA = a.items.reduce((s, i) => s + i.quantity, 0);
+        valB = b.items.reduce((s, i) => s + i.quantity, 0);
+      } else if (sortField === 'total') {
+        valA = a.total;
+        valB = b.total;
+      } else if (sortField === 'payment' || sortField === 'paymentMethod') {
+        valA = a.paymentMethod.toLowerCase();
+        valB = b.paymentMethod.toLowerCase();
+      } else if (sortField === 'status') {
+        valA = a.status.toLowerCase();
+        valB = b.status.toLowerCase();
+      } else {
+        valA = (a as any)[sortField];
+        valB = (b as any)[sortField];
+      }
+
+      if (valA === undefined || valA === null) valA = '';
+      if (valB === undefined || valB === null) valB = '';
+
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+
+      return sortOrder === 'asc' ? (valA > valB ? 1 : valA < valB ? -1 : 0) : (valA < valB ? 1 : valA > valB ? -1 : 0);
+    });
+
+    const total = result.length;
+
+    // Server-side pagination
+    if (filters?.page && filters?.limit) {
+      const start = (filters.page - 1) * filters.limit;
+      result = result.slice(start, start + filters.limit);
+    }
+
+    return { orders: result, total };
   }
 
   async getOrderById(orderId: string): Promise<Order | null> {

@@ -9,7 +9,7 @@ interface AuthContextType {
   isAdmin: boolean;
   login: (email: string, pass: string) => Promise<void>;
   loginWithGoogle: (email?: string, name?: string) => Promise<void>;
-  register: (name: string, email: string, pass: string, confirm: string) => Promise<void>;
+  register: (name: string, email: string, pass: string, confirm: string, role?: 'customer' | 'admin') => Promise<void>;
   logout: () => void;
   setUser: (user: User | null) => void;
 }
@@ -56,8 +56,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setStoredAuth(res.token, res.user);
   };
 
-  const register = async (name: string, email: string, pass: string, confirm: string) => {
-    const res = await api.register(name, email, pass, confirm);
+  const register = async (name: string, email: string, pass: string, confirm: string, role?: 'customer' | 'admin') => {
+    const res = await api.register(name, email, pass, confirm, role);
     setUser(res.user);
     setToken(res.token);
     setStoredAuth(res.token, res.user);

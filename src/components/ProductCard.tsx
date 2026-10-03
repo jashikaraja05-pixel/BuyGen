@@ -201,7 +201,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, navigate }) =
                   ? 'bg-slate-900 text-slate-600 cursor-not-allowed border border-slate-800'
                   : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 active:scale-95'
               }`}
-              title="Add to Cart (ஆட் கார்ட்)"
+              title="Add to Cart"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
               <span>{adding ? '...' : 'Add Cart'}</span>
@@ -216,7 +216,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, navigate }) =
                   ? 'bg-slate-900 text-slate-600 cursor-not-allowed border border-slate-800'
                   : 'bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-white shadow-cyan-500/20 active:scale-95'
               }`}
-              title="Instant Buy / Checkout (பைக்)"
+              title="Instant Buy / Checkout"
             >
               <span>⚡ Buy Now</span>
             </button>

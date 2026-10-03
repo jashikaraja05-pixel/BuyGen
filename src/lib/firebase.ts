@@ -1,12 +1,20 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { getFirestore, doc, getDocFromServer, setLogLevel } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json' with { type: 'json' };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 
 // CRITICAL: The app will break without specifying the custom firestoreDatabaseId
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+// Silence internal gRPC idle stream warnings and timeouts
+try {
+  setLogLevel('silent');
+} catch {
+  // Ignore in case setLogLevel is not supported in environment
+}
+
 export const auth = getAuth(app);
 
 export enum OperationType {
@@ -58,7 +66,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 export async function validateFirestoreConnection() {
   try {
-    await getDocFromServer(doc(db, 'system', 'connection'));
+    await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (error) {
     if (error instanceof Error && error.message.includes('the client is offline')) {
       console.warn('Firestore offline status:', error.message);

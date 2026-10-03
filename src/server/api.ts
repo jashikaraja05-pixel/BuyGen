@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { GoogleGenAI } from '@google/genai';
 import { dbStore } from './db.ts';
 import { OrderStatus, PaymentMethod, User } from '../types/index.ts';
+import { normalizeSearchQuery, getExpandedSearchTokens } from '../lib/spellingNormalizer.ts';
 
 export const apiRouter = Router();
 
@@ -59,7 +60,7 @@ apiRouter.use(authMiddleware);
 // ================= AUTH ROUTES =================
 apiRouter.post('/auth/register', async (req, res) => {
   try {
-    const { name, email, password, confirmPassword } = req.body;
+    const { name, email, password, confirmPassword, role } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email, and password are required.' });
     }
@@ -70,9 +71,14 @@ apiRouter.post('/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
     }
 
-    const user = await dbStore.registerUser(name, email, password, 'customer');
+    const assignedRole = role === 'admin' ? 'admin' : 'customer';
+    const user = await dbStore.registerUser(name, email, password, assignedRole);
     const token = `${user.id}:${Buffer.from(email).toString('base64')}`;
-    res.status(201).json({ user, token, message: 'Registration successful!' });
+    res.status(201).json({ 
+      user, 
+      token, 
+      message: `${assignedRole === 'admin' ? 'Admin' : 'Customer'} account created successfully!` 
+    });
   } catch (err: any) {
     res.status(400).json({ error: err.message || 'Registration failed.' });
   }
@@ -479,7 +485,8 @@ CRITICAL RULES:
 4. Select 1 primary best match ('recommended') and 1 or 2 alternative matches ('alternative').
 5. Explain concisely WHY each product matches the user's specific use case and budget.
 6. For alternatives, highlight key differences from the primary recommendation.
-7. Return ONLY valid JSON in this exact structure:
+7. SILENT TYPO CORRECTION: The user may make spelling mistakes or typos (for example, typing "phene" for "phone", "lapotp" for "laptop", "camra" for "camera", "earbds" for "earbuds", "moniter" for "monitor"). Silently detect and understand their intended electronic product and directly provide the relevant recommendations. NEVER say "I detected a typo" or "Did you mean phone" or mention the spelling error in the summary or text.
+8. Return ONLY valid JSON in this exact structure:
 {
   "extractedRequirements": {
     "budget": number or null,
@@ -527,7 +534,9 @@ ${JSON.stringify(productCatalogSummary, null, 2)}`;
 
     // Fallback deterministic semantic matcher if Gemini API key is unset or calls fail
     if (!aiAdvice || !aiAdvice.recommendations?.length) {
-      const q = prompt.toLowerCase();
+      // Silently normalize misspelled words like "phene" -> "phone"
+      const normalizedPrompt = normalizeSearchQuery(prompt);
+      const q = (normalizedPrompt || prompt).toLowerCase();
       
       // Extract budget numbers (e.g. 70000, 70k, 30,000, 1.5 lakh)
       let budget: number | undefined;
@@ -716,8 +725,9 @@ apiRouter.post('/ai/search', async (req, res) => {
       return res.json({ products, interpreted: null });
     }
 
-    // Extract filters from natural language query
-    const q = query.toLowerCase();
+    // Silently normalize misspelled words like "phene" -> "phone"
+    const normalizedQuery = normalizeSearchQuery(query);
+    const q = (normalizedQuery || query).toLowerCase();
     let minPrice: number | undefined;
     let maxPrice: number | undefined;
     let category: string | undefined;
@@ -752,7 +762,7 @@ apiRouter.post('/ai/search', async (req, res) => {
     }
 
     // Clean search text by removing filter trigger phrases
-    const cleanSearch = query
+    const cleanSearch = (normalizedQuery || query)
       .replace(/(?:under|below|less than|upto|up to)\s*(?:rs\.?|inr|₹)?\s*(\d+[\d,]*)(?:k)?/gi, '')
       .replace(/(?:show me|find me|look for|search for|recommend|i want|i need|good|best)/gi, '')
       .trim();

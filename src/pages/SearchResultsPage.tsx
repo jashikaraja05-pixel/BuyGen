@@ -50,25 +50,18 @@ export const SearchResultsPage: React.FC<SearchResultsPageProps> = ({ searchQuer
         </p>
       </div>
 
-      {/* AI Interpretation banner if natural-language constraints were detected */}
-      {interpreted && (interpreted.maxPrice || interpreted.category) && (
-        <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-between text-xs">
+      {/* Clean budget badge if specified, without any typo detection messages */}
+      {interpreted && interpreted.maxPrice && (
+        <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-indigo-900">AI Query Interpretation:</span>
-            {interpreted.maxPrice && (
-              <span className="px-2.5 py-1 bg-white rounded-lg border border-indigo-200 text-indigo-800 font-semibold">
-                Budget Cap: ₹{interpreted.maxPrice.toLocaleString('en-IN')}
-              </span>
-            )}
-            {interpreted.cleanSearch && (
-              <span className="px-2.5 py-1 bg-white rounded-lg border border-indigo-200 text-indigo-800 font-semibold">
-                Keywords: {interpreted.cleanSearch}
-              </span>
-            )}
+            <span className="font-bold text-indigo-900">Applied Filter:</span>
+            <span className="px-2.5 py-1 bg-white rounded-lg border border-indigo-200 text-indigo-800 font-semibold">
+              Budget: Under ₹{interpreted.maxPrice.toLocaleString('en-IN')}
+            </span>
           </div>
           <button
             onClick={() => navigate('/advisor')}
-            className="text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1"
+            className="text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1 cursor-pointer"
           >
             <span>Ask Tech Advisor</span>
             <ArrowRight className="w-3.5 h-3.5" />
