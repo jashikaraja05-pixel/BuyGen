@@ -84,6 +84,44 @@ export const initialCategories: Category[] = [
 ];
 
 export const initialProducts: Product[] = [
+  // 1. Core Sample Phone for E2E Flow Verification (Stock: 10)
+  {
+    id: 'prod-sample-phone',
+    name: 'BUYGEN Nova 5G Smartphone',
+    brand: 'BUYGEN',
+    categoryId: 'cat-1',
+    categoryName: 'Smartphones',
+    subcategory: 'Flagship Phones',
+    description: 'BUYGEN flagship consumer electronics test smartphone. Powered by Snapdragon 8 Gen 3 AI processor, 120Hz AMOLED Pro display, 108MP OIS camera, and 5000mAh battery with 67W Turbo Charge.',
+    price: 49999,
+    originalPrice: 54999,
+    discount: 9,
+    stock: 10,
+    rating: 5.0,
+    reviewCount: 0,
+    images: [
+      'https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=1000&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1565849904461-04a58ad377e0?q=80&w=1000&auto=format&fit=crop'
+    ],
+    colors: ['Cosmic Black', 'Titanium Gray', 'Aurora Blue'],
+    availableColours: ['Cosmic Black', 'Titanium Gray', 'Aurora Blue'],
+    specifications: {
+      'Processor': 'Snapdragon 8 Gen 3 AI (4nm)',
+      'RAM': '12GB High Speed LPDDR5X',
+      'Storage': '256GB High-Speed Storage',
+      'Display': '6.7-inch 120Hz AMOLED Pro Display',
+      'Rear Camera': '108MP OIS Main + 12MP Ultra-wide',
+      'Front Camera': '32MP HDR Selfie',
+      'Battery': '5000 mAh with 67W Turbo Charge',
+      'OS': 'Android 15 / BUYGEN OS'
+    },
+    featured: true,
+    trending: true,
+    newArrival: true,
+    badge: 'Sample Flow (Stock: 10)',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
   // 1. Smartphones
   {
     id: 'prod-sp-1',

@@ -15,6 +15,21 @@ try {
   // Ignore in case setLogLevel is not supported in environment
 }
 
+if (typeof window !== 'undefined') {
+  const origConsoleError = console.error.bind(console);
+  console.error = (...args: any[]) => {
+    const first = args[0];
+    if (typeof first === 'string' && (
+      first.includes('Disconnecting idle stream') ||
+      first.includes('Timed out waiting for new targets') ||
+      first.includes("GrpcConnection RPC 'Listen' stream")
+    )) {
+      return;
+    }
+    origConsoleError(...args);
+  };
+}
+
 export const auth = getAuth(app);
 
 export enum OperationType {

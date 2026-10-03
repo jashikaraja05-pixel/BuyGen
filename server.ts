@@ -7,6 +7,33 @@ import { apiRouter } from './src/server/api.ts';
 
 dotenv.config();
 
+// Filter benign Firestore internal gRPC idle stream warnings
+const originalStderrWrite = process.stderr.write.bind(process.stderr);
+process.stderr.write = ((chunk: any, ...args: any[]) => {
+  const str = typeof chunk === 'string' ? chunk : chunk?.toString?.() || '';
+  if (
+    str.includes('Disconnecting idle stream') ||
+    str.includes('Timed out waiting for new targets') ||
+    str.includes("GrpcConnection RPC 'Listen' stream")
+  ) {
+    return true;
+  }
+  return (originalStderrWrite as any)(chunk, ...args);
+}) as any;
+
+const originalConsoleError = console.error.bind(console);
+console.error = (...args: any[]) => {
+  const first = args[0];
+  if (typeof first === 'string' && (
+    first.includes('Disconnecting idle stream') ||
+    first.includes('Timed out waiting for new targets') ||
+    first.includes("GrpcConnection RPC 'Listen' stream")
+  )) {
+    return;
+  }
+  originalConsoleError(...args);
+};
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
