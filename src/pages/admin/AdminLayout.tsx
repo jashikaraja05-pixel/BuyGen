@@ -30,13 +30,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   navigate, 
   children 
 }) => {
-  const { user, isAdmin, login, logout } = useAuth();
-  const [adminEmail, setAdminEmail] = useState('admin@buygen.com');
+  const { user, isAdmin, login, loginWithGoogle, logout } = useAuth();
+  const [adminEmail, setAdminEmail] = useState('gayathirisathyamoorthy2006@gmail.com');
   const [adminPassword, setAdminPassword] = useState('Admin@123');
   const [authError, setAuthError] = useState<string | null>(null);
   const [loggingIn, setLoggingIn] = useState(false);
+  const [googleLoggingIn, setGoogleLoggingIn] = useState(false);
 
-  // If not logged in as Admin, show dedicated Admin Portal Login Gate with 1-click demo button
+  // If not logged in as Admin, show dedicated Admin Portal Login Gate
   if (!user || !isAdmin) {
     const handleAdminLogin = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -51,15 +52,15 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
       }
     };
 
-    const handleOneClickAdmin = async () => {
+    const handleGoogleAdminLogin = async () => {
       try {
-        setLoggingIn(true);
+        setGoogleLoggingIn(true);
         setAuthError(null);
-        await login('admin@buygen.com', 'Admin@123');
+        await loginWithGoogle('gayathirisathyamoorthy2006@gmail.com', 'Gayathiri Sathyamoorthy (Admin)');
       } catch (err: any) {
-        setAuthError(err.message || 'Admin authentication failed');
+        setAuthError(err.message || 'Google admin authentication failed');
       } finally {
-        setLoggingIn(false);
+        setGoogleLoggingIn(false);
       }
     };
 
@@ -78,7 +79,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                 BUY<span className="bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent">GEN</span>
               </span>
               <span className="text-[10px] font-bold text-amber-400 block tracking-wider uppercase">
-                Admin Portal
+                Consumer Electronics Store Manager
+              </span>
+              <span className="text-[9px] font-semibold text-cyan-400 block">
+                கன்ஸ்யூமர் எலக்ட்ரானிக்ஸ்
               </span>
             </div>
           </div>
@@ -99,31 +103,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
               <ShieldCheck className="w-7 h-7" />
             </div>
             <h2 className="font-heading font-black text-2xl text-white">
-              BUYGEN Admin Portal
+              Consumer Electronics Admin Portal
             </h2>
             <p className="text-xs text-slate-400">
-              Sign in with administrative privileges to manage products, categories, orders, and view database analytics.
+              Sign in with administrative credentials to manage store inventory, real products, and customer orders.
             </p>
-          </div>
-
-          {/* 1-Click Instant Demo Login Banner */}
-          <div className="p-4 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-slate-800 rounded-2xl border border-amber-500/30 space-y-2">
-            <div className="flex items-center gap-1.5 text-amber-300 font-bold text-xs">
-              <Zap className="w-4 h-4 text-amber-400" />
-              <span>Instant Hackathon Evaluation:</span>
-            </div>
-            <p className="text-[11px] text-slate-300">
-              Click below to instantly authenticate as Administrator and inspect the full admin dashboard:
-            </p>
-            <button
-              type="button"
-              onClick={handleOneClickAdmin}
-              disabled={loggingIn}
-              className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-heading font-black text-xs rounded-xl shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-            >
-              <ShieldCheck className="w-4 h-4" />
-              <span>{loggingIn ? 'Authenticating Admin...' : '⚡ 1-Click Login as Admin'}</span>
-            </button>
           </div>
 
           {authError && (
@@ -133,11 +117,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             </div>
           )}
 
-          {/* Manual Admin Form */}
+          {/* Top: Email ID Form */}
           <form onSubmit={handleAdminLogin} className="space-y-4 text-xs">
             <div>
-              <label className="block font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                Admin Email
+              <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex justify-between">
+                <span>Admin Email ID</span>
+                <span className="text-[10px] text-amber-400 lowercase font-medium">gayathirisathyamoorthy2006@gmail.com</span>
               </label>
               <div className="relative">
                 <input
@@ -145,14 +130,15 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                   required
                   value={adminEmail}
                   onChange={(e) => setAdminEmail(e.target.value)}
+                  placeholder="gayathirisathyamoorthy2006@gmail.com"
                   className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-hidden focus:border-amber-500"
                 />
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                <Mail className="w-4 h-4 text-amber-400 absolute left-3 top-3" />
               </div>
             </div>
 
             <div>
-              <label className="block font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+              <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5">
                 Admin Password
               </label>
               <div className="relative">
@@ -163,22 +149,58 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                   onChange={(e) => setAdminPassword(e.target.value)}
                   className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-hidden focus:border-amber-500"
                 />
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                <Lock className="w-4 h-4 text-amber-400 absolute left-3 top-3" />
               </div>
             </div>
 
             <button
               type="submit"
-              disabled={loggingIn}
-              className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition cursor-pointer"
+              disabled={loggingIn || googleLoggingIn}
+              className="w-full py-3 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs rounded-xl transition cursor-pointer shadow-lg shadow-amber-500/20 active:scale-98"
             >
-              {loggingIn ? 'Verifying...' : 'Sign In to Admin Console'}
+              {loggingIn ? 'Authenticating...' : 'Sign In as Store Administrator'}
             </button>
           </form>
+
+          {/* Divider */}
+          <div className="relative flex items-center justify-center my-2">
+            <div className="w-full border-t border-slate-800"></div>
+            <span className="absolute bg-slate-900 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+              Or Sign In Below With Google
+            </span>
+          </div>
+
+          {/* Bottom: Google Login */}
+          <button
+            type="button"
+            onClick={handleGoogleAdminLogin}
+            disabled={loggingIn || googleLoggingIn}
+            className="w-full py-3 px-4 bg-white hover:bg-slate-100 text-slate-950 font-black text-xs rounded-xl shadow-lg transition flex items-center justify-center gap-3 cursor-pointer active:scale-98"
+          >
+            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.14z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.36 24 12 24z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.04 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+              />
+            </svg>
+            <span>{googleLoggingIn ? 'Signing in with Google...' : 'Sign in with Google (gayathirisathyamoorthy2006@gmail.com)'}</span>
+          </button>
         </div>
 
         <p className="text-center text-xs text-slate-600">
-          INFYHACKATHON 2.0 • BUYGEN Admin Access Gateway
+          BUYGEN Consumer Electronics Store Manager Console
         </p>
       </div>
     );
@@ -212,7 +234,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                   BUY<span className="bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent">GEN</span>
                 </span>
                 <span className="block text-[10px] font-bold tracking-wider uppercase text-amber-400">
-                  Admin Console
+                  Consumer Electronics Store
+                </span>
+                <span className="block text-[9px] font-semibold text-cyan-400">
+                  கன்ஸ்யூமர் எலக்ட்ரானிக்ஸ்
                 </span>
               </div>
             </div>
@@ -278,7 +303,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                 {currentAdminTab} Management
               </h2>
               <span className="text-[11px] text-slate-500 font-medium">
-                BUYGEN Administrator Control Panel • Real-time DB Active
+                BUYGEN Consumer Electronics Store Manager (கன்ஸ்யூமர் எலக்ட்ரானிக்ஸ்) • Real-time Persistent DB
               </span>
             </div>
           </div>

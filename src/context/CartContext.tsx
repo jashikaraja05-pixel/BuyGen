@@ -10,7 +10,7 @@ interface CartContextType {
   discount: number;
   total: number;
   loading: boolean;
-  addToCart: (productId: string, quantity?: number) => Promise<void>;
+  addToCart: (productId: string, quantity?: number, selectedColor?: string) => Promise<void>;
   updateQuantity: (productId: string, quantity: number) => Promise<void>;
   removeFromCart: (productId: string) => Promise<void>;
   clearCart: () => Promise<void>;
@@ -63,14 +63,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshCart();
   }, [refreshCart]);
 
-  const addToCart = async (productId: string, quantity: number = 1) => {
+  const addToCart = async (productId: string, quantity: number = 1, selectedColor?: string) => {
     if (!user) {
       showToast('Please log in to add items to your cart.');
       throw new Error('Please log in first');
     }
     try {
       setLoading(true);
-      const res = await api.addToCart(productId, quantity);
+      const res = await api.addToCart(productId, quantity, selectedColor);
       setItems(res.items);
       setSubtotal(res.subtotal);
       setDiscount(res.discount);

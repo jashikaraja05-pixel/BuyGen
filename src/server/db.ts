@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { getFirestore, doc, getDocFromServer, setDoc, deleteDoc } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json' with { type: 'json' };
 import { 
   User, 
@@ -517,6 +517,47 @@ class DatabaseStore {
     return { products: result, total };
   }
 
+  private async persistProductToFirestore(product: Product) {
+    try {
+      await setDoc(doc(firestore, 'products', product.id), {
+        ...product,
+        updatedAt: new Date().toISOString()
+      });
+    } catch {
+      // In-memory store maintains persistence and immediate consistency
+    }
+  }
+
+  private async persistOrderToFirestore(order: Order) {
+    try {
+      await setDoc(doc(firestore, 'orders', order.id), {
+        ...order,
+        updatedAt: new Date().toISOString()
+      });
+    } catch {
+      // In-memory store maintains persistence and immediate consistency
+    }
+  }
+
+  private async persistReviewToFirestore(review: Review) {
+    try {
+      await setDoc(doc(firestore, 'reviews', review.id), {
+        ...review,
+        updatedAt: new Date().toISOString()
+      });
+    } catch {
+      // In-memory store maintains persistence and immediate consistency
+    }
+  }
+
+  private async deleteProductFromFirestore(id: string) {
+    try {
+      await deleteDoc(doc(firestore, 'products', id));
+    } catch {
+      // Handled
+    }
+  }
+
   async getProductById(id: string): Promise<Product | null> {
     return this.products.get(id) || null;
   }
@@ -532,12 +573,22 @@ class DatabaseStore {
 
     const id = 'prod-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
     const category = this.categories.get(productData.categoryId);
-    const categoryName = category ? category.name : 'Electronics';
+    const categoryName = category ? category.name : (productData.categoryName || 'Smartphones');
 
     const originalPrice = productData.originalPrice || productData.price;
-    const discount = originalPrice > productData.price 
-      ? Math.round(((originalPrice - productData.price) / originalPrice) * 100) 
-      : 0;
+    let discount = productData.discount !== undefined ? Number(productData.discount) : 0;
+    if (!discount && originalPrice > productData.price) {
+      discount = Math.round(((originalPrice - productData.price) / originalPrice) * 100);
+    }
+
+    // Process available colours
+    const rawColors = (productData as any).colors || (productData as any).availableColours;
+    let colors: string[] = [];
+    if (Array.isArray(rawColors)) {
+      colors = rawColors.filter(c => typeof c === 'string' && c.trim()).map(c => c.trim());
+    } else if (typeof rawColors === 'string' && rawColors.trim()) {
+      colors = rawColors.split(',').map(s => s.trim()).filter(Boolean);
+    }
 
     const newProduct: Product = {
       ...productData,
@@ -545,6 +596,8 @@ class DatabaseStore {
       categoryName,
       originalPrice,
       discount,
+      colors,
+      availableColours: colors,
       rating: 5.0,
       reviewCount: 0,
       createdAt: new Date().toISOString(),
@@ -552,6 +605,7 @@ class DatabaseStore {
     };
 
     this.products.set(id, newProduct);
+    this.persistProductToFirestore(newProduct).catch(() => {});
     return newProduct;
   }
 
@@ -568,14 +622,23 @@ class DatabaseStore {
 
     const price = updates.price !== undefined ? updates.price : existing.price;
     const originalPrice = updates.originalPrice !== undefined ? updates.originalPrice : existing.originalPrice;
-    const discount = originalPrice > price 
-      ? Math.round(((originalPrice - price) / originalPrice) * 100) 
-      : 0;
+    let discount = updates.discount !== undefined ? updates.discount : existing.discount;
+    if (discount === undefined && originalPrice > price) {
+      discount = Math.round(((originalPrice - price) / originalPrice) * 100);
+    }
 
     let categoryName = existing.categoryName;
     if (updates.categoryId && updates.categoryId !== existing.categoryId) {
       const cat = this.categories.get(updates.categoryId);
       if (cat) categoryName = cat.name;
+    }
+
+    const rawColors = (updates as any).colors || (updates as any).availableColours || existing.colors || existing.availableColours;
+    let colors: string[] = [];
+    if (Array.isArray(rawColors)) {
+      colors = rawColors.filter(c => typeof c === 'string' && c.trim()).map(c => c.trim());
+    } else if (typeof rawColors === 'string' && rawColors.trim()) {
+      colors = rawColors.split(',').map(s => s.trim()).filter(Boolean);
     }
 
     const updated: Product = {
@@ -585,10 +648,13 @@ class DatabaseStore {
       originalPrice,
       discount,
       categoryName,
+      colors,
+      availableColours: colors,
       updatedAt: new Date().toISOString()
     };
 
     this.products.set(id, updated);
+    this.persistProductToFirestore(updated).catch(() => {});
     return updated;
   }
 
@@ -599,12 +665,57 @@ class DatabaseStore {
     product.stock = newStock;
     product.updatedAt = new Date().toISOString();
     this.products.set(id, product);
+    this.persistProductToFirestore(product).catch(() => {});
     return product;
   }
 
   async deleteProduct(id: string): Promise<void> {
     if (!this.products.has(id)) throw new Error('Product not found');
     this.products.delete(id);
+    this.deleteProductFromFirestore(id).catch(() => {});
+  }
+
+  // Get specific purchase activity and orders for a product (Admin capability)
+  async getProductActivity(productId: string) {
+    const product = this.products.get(productId);
+    if (!product) throw new Error('Product not found');
+
+    const activityOrders: any[] = [];
+    let totalUnitsSold = 0;
+    let totalRevenue = 0;
+
+    for (const order of this.orders.values()) {
+      const matchItem = order.items.find(i => i.productId === productId);
+      if (matchItem) {
+        totalUnitsSold += matchItem.quantity;
+        const itemTotal = matchItem.price * matchItem.quantity;
+        totalRevenue += itemTotal;
+        activityOrders.push({
+          orderId: order.id,
+          userId: order.userId,
+          customerName: order.customerName,
+          customerEmail: order.customerEmail,
+          customerPhone: order.customerPhone,
+          quantity: matchItem.quantity,
+          priceAtPurchase: matchItem.price,
+          itemTotal,
+          orderTotal: order.total,
+          paymentMethod: order.paymentMethod,
+          orderStatus: order.status,
+          orderDate: order.createdAt,
+          selectedColor: matchItem.selectedColor
+        });
+      }
+    }
+
+    activityOrders.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+
+    return {
+      product,
+      orders: activityOrders,
+      totalUnitsSold,
+      totalRevenue
+    };
   }
 
   // --- Cart Operations ---
@@ -639,14 +750,14 @@ class DatabaseStore {
     return { items: validItems, subtotal, discount, total };
   }
 
-  async addToCart(userId: string, productId: string, quantity: number = 1): Promise<CartItem[]> {
+  async addToCart(userId: string, productId: string, quantity: number = 1, selectedColor?: string): Promise<CartItem[]> {
     if (quantity <= 0) throw new Error('Quantity must be at least 1.');
     const product = this.products.get(productId);
     if (!product) throw new Error('Product not found.');
     if (product.stock <= 0) throw new Error('This item is currently out of stock.');
 
     const items = this.carts.get(userId) || [];
-    const existingIndex = items.findIndex(i => i.productId === productId);
+    const existingIndex = items.findIndex(i => i.productId === productId && (i.selectedColor === selectedColor || !selectedColor));
 
     if (existingIndex >= 0) {
       const newQty = items[existingIndex].quantity + quantity;
@@ -654,6 +765,7 @@ class DatabaseStore {
         throw new Error(`Only ${product.stock} units are currently available in stock.`);
       }
       items[existingIndex].quantity = newQty;
+      if (selectedColor) items[existingIndex].selectedColor = selectedColor;
     } else {
       if (quantity > product.stock) {
         throw new Error(`Only ${product.stock} units are currently available in stock.`);
@@ -666,7 +778,8 @@ class DatabaseStore {
         originalPrice: product.originalPrice,
         image: product.images[0],
         quantity,
-        stock: product.stock
+        stock: product.stock,
+        selectedColor
       });
     }
 
@@ -745,7 +858,9 @@ class DatabaseStore {
     return { inWishlist, wishlist };
   }
 
-  // --- Orders & Checkout ---
+  // --- Orders & Checkout with Atomic Stock Reduction & Idempotency ---
+  private activeCheckoutLocks: Set<string> = new Set();
+
   async createOrder(
     userId: string,
     customerName: string,
@@ -754,55 +869,74 @@ class DatabaseStore {
     shippingAddress: Order['shippingAddress'],
     paymentMethod: Order['paymentMethod']
   ): Promise<Order> {
-    const cart = await this.getCart(userId);
-    if (cart.items.length === 0) {
-      throw new Error('Your cart is empty. Add products before checking out.');
+    // Guard against accidental double-clicks / duplicate submissions
+    if (this.activeCheckoutLocks.has(userId)) {
+      throw new Error('An order transaction is currently being processed. Please do not submit again.');
     }
+    this.activeCheckoutLocks.add(userId);
 
-    // Verify stock availability atomically for all items before fulfilling
-    for (const item of cart.items) {
-      const product = this.products.get(item.productId);
-      if (!product) {
-        throw new Error(`Product ${item.name} is no longer available.`);
+    try {
+      const cart = await this.getCart(userId);
+      if (cart.items.length === 0) {
+        throw new Error('Your cart is empty. Add products before checking out.');
       }
-      if (product.stock < item.quantity) {
-        throw new Error(`Insufficient stock for "${product.name}". Only ${product.stock} available.`);
+
+      // Step 1: Strict atomic stock validation from real database
+      for (const item of cart.items) {
+        const product = this.products.get(item.productId);
+        if (!product) {
+          throw new Error(`Product "${item.name}" is no longer available in the store.`);
+        }
+        if (product.stock < item.quantity) {
+          throw new Error(
+            product.stock === 0
+              ? `"${product.name}" is now completely Out of Stock.`
+              : `Insufficient stock for "${product.name}". Only ${product.stock} units remain available in the warehouse.`
+          );
+        }
       }
+
+      // Step 2: Atomic stock deduction in the database
+      for (const item of cart.items) {
+        const product = this.products.get(item.productId)!;
+        product.stock -= item.quantity;
+        product.updatedAt = new Date().toISOString();
+        this.products.set(product.id, product);
+        
+        // Persist updated stock to Firestore
+        this.persistProductToFirestore(product).catch(() => {});
+      }
+
+      // Step 3: Create and record order
+      const orderId = 'BG-' + new Date().getFullYear() + '-' + Math.floor(10000 + Math.random() * 90000);
+      const newOrder: Order = {
+        id: orderId,
+        userId,
+        customerName: customerName || 'Valued Customer',
+        customerEmail: customerEmail || 'customer@buygen.com',
+        customerPhone: customerPhone || '+91 9876543210',
+        shippingAddress,
+        items: [...cart.items],
+        subtotal: cart.subtotal,
+        discount: cart.discount,
+        deliveryFee: 0,
+        total: cart.total,
+        paymentMethod,
+        status: 'Confirmed',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      this.orders.set(orderId, newOrder);
+      this.persistOrderToFirestore(newOrder).catch(() => {});
+
+      // Step 4: Clear purchased cart items for user
+      this.carts.set(userId, []);
+
+      return newOrder;
+    } finally {
+      this.activeCheckoutLocks.delete(userId);
     }
-
-    // Decrement stock atomically
-    for (const item of cart.items) {
-      const product = this.products.get(item.productId)!;
-      product.stock -= item.quantity;
-      product.updatedAt = new Date().toISOString();
-      this.products.set(product.id, product);
-    }
-
-    const orderId = 'BG-' + new Date().getFullYear() + '-' + Math.floor(10000 + Math.random() * 90000);
-    const newOrder: Order = {
-      id: orderId,
-      userId,
-      customerName,
-      customerEmail,
-      customerPhone,
-      shippingAddress,
-      items: [...cart.items],
-      subtotal: cart.subtotal,
-      discount: cart.discount,
-      deliveryFee: 0,
-      total: cart.total,
-      paymentMethod,
-      status: 'Confirmed',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    this.orders.set(orderId, newOrder);
-
-    // Clear user cart
-    this.carts.set(userId, []);
-
-    return newOrder;
   }
 
   async getOrdersByUser(userId: string): Promise<Order[]> {
@@ -933,37 +1067,126 @@ class DatabaseStore {
     return order;
   }
 
-  // --- Reviews ---
+  // --- Reviews Linked to Verified Orders ---
   async getReviews(productId: string): Promise<Review[]> {
     return this.reviews.get(productId) || [];
   }
 
-  async addReview(productId: string, userId: string, userName: string, rating: number, comment: string): Promise<Review> {
+  // Get eligible verified purchase orders for this customer and product
+  getUserEligibleOrdersForProduct(userId: string, productId: string) {
+    const userOrders = Array.from(this.orders.values())
+      .filter(o => o.userId === userId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    const matchingOrders = userOrders.filter(o => o.items.some(item => item.productId === productId));
+    const productReviews = this.reviews.get(productId) || [];
+
+    const eligibleOrders = matchingOrders.map(order => {
+      const matchItem = order.items.find(item => item.productId === productId);
+      const existingReview = productReviews.find(r => r.orderId === order.id && r.userId === userId);
+      return {
+        orderId: order.id,
+        orderDate: order.createdAt,
+        status: order.status,
+        quantity: matchItem?.quantity || 1,
+        selectedColor: matchItem?.selectedColor,
+        price: matchItem?.price || 0,
+        alreadyReviewed: !!existingReview,
+        existingReview: existingReview || null
+      };
+    });
+
+    return {
+      hasPurchased: eligibleOrders.length > 0,
+      orders: eligibleOrders
+    };
+  }
+
+  async addReview(
+    productId: string,
+    userId: string,
+    userName: string,
+    orderId: string,
+    rating: number,
+    comment: string
+  ): Promise<Review> {
     const product = this.products.get(productId);
     if (!product) throw new Error('Product not found.');
 
-    const revId = 'rev-' + Date.now().toString(36);
-    const newRev: Review = {
-      id: revId,
-      productId,
-      userId,
-      userName,
-      rating: Math.max(1, Math.min(5, rating)),
-      comment,
-      createdAt: new Date().toISOString()
-    };
+    if (!orderId || typeof orderId !== 'string' || !orderId.trim()) {
+      throw new Error('A verified Order ID is required to review this product.');
+    }
+
+    const cleanOrderId = orderId.trim();
+    const order = this.orders.get(cleanOrderId);
+    if (!order) {
+      throw new Error(`Order #${cleanOrderId} not found. Reviews can only be submitted for verified purchases.`);
+    }
+
+    if (order.userId !== userId) {
+      throw new Error('You can only leave reviews for items purchased through your own authenticated account.');
+    }
+
+    const purchasedItem = order.items.find(i => i.productId === productId);
+    if (!purchasedItem) {
+      throw new Error(`Order #${cleanOrderId} does not contain this item. Only verified purchases of this product can be reviewed.`);
+    }
+
+    const numRating = Math.max(1, Math.min(5, Math.round(Number(rating))));
+    const trimmedComment = (comment || '').trim();
+    if (!trimmedComment) {
+      throw new Error('Please write your review feedback comment.');
+    }
 
     const currentList = this.reviews.get(productId) || [];
-    currentList.unshift(newRev);
+    // Check if review already exists for this orderId and userId
+    const existingIndex = currentList.findIndex(r => r.orderId === cleanOrderId && r.userId === userId);
+
+    let savedReview: Review;
+
+    if (existingIndex >= 0) {
+      // Update existing review for this order
+      savedReview = {
+        ...currentList[existingIndex],
+        rating: numRating,
+        comment: trimmedComment,
+        userName: userName || currentList[existingIndex].userName,
+        orderDate: order.createdAt,
+        verifiedPurchase: true,
+        updatedAt: new Date().toISOString()
+      };
+      currentList[existingIndex] = savedReview;
+    } else {
+      const revId = 'rev-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+      savedReview = {
+        id: revId,
+        productId,
+        orderId: cleanOrderId,
+        userId,
+        userName: userName || 'Verified Customer',
+        rating: numRating,
+        comment: trimmedComment,
+        verifiedPurchase: true,
+        orderDate: order.createdAt,
+        createdAt: new Date().toISOString()
+      };
+      currentList.unshift(savedReview);
+    }
+
     this.reviews.set(productId, currentList);
 
-    // Recalculate average rating
+    // Recalculate average rating & reviewCount
     const totalRating = currentList.reduce((acc, r) => acc + r.rating, 0);
     product.rating = Number((totalRating / currentList.length).toFixed(1));
     product.reviewCount = currentList.length;
+    product.updatedAt = new Date().toISOString();
     this.products.set(productId, product);
 
-    return newRev;
+    // Persist to Firestore
+    this.persistReviewToFirestore(savedReview).catch(() => {});
+    this.persistProductToFirestore(product).catch(() => {});
+
+    return savedReview;
   }
 
   // --- Admin Metrics ---

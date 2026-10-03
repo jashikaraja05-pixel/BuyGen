@@ -8,7 +8,14 @@ import {
   X, 
   AlertCircle,
   Eye,
-  SlidersHorizontal
+  SlidersHorizontal,
+  ShoppingBag,
+  Sparkles,
+  Smartphone,
+  History,
+  ChevronRight,
+  User,
+  IndianRupee
 } from 'lucide-react';
 import { Product, Category } from '../../types/index.ts';
 import { api } from '../../services/api.ts';
@@ -32,7 +39,9 @@ export const AdminProductsPage: React.FC = () => {
   const [subcategory, setSubcategory] = useState('');
   const [price, setPrice] = useState<number>(0);
   const [originalPrice, setOriginalPrice] = useState<number>(0);
+  const [discount, setDiscount] = useState<number>(0);
   const [stock, setStock] = useState<number>(10);
+  const [colours, setColours] = useState<string>('');
   const [description, setDescription] = useState('');
   const [image1, setImage1] = useState('');
   const [image2, setImage2] = useState('');
@@ -42,6 +51,11 @@ export const AdminProductsPage: React.FC = () => {
   ]);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Product Activity Modal State
+  const [activityProduct, setActivityProduct] = useState<Product | null>(null);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityData, setActivityData] = useState<any | null>(null);
 
   // Delete Confirmation Modal
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
@@ -69,21 +83,49 @@ export const AdminProductsPage: React.FC = () => {
     loadData();
   }, []);
 
+  const handleQuickFillSamplePhone = () => {
+    setName('BUYGEN Nova 5G Smartphone');
+    setBrand('BUYGEN');
+    const phoneCat = categories.find(c => c.name.toLowerCase().includes('phone') || c.slug.includes('phone') || c.id === 'cat-1');
+    if (phoneCat) setCategoryId(phoneCat.id);
+    setSubcategory('Flagship Phones');
+    setPrice(49999);
+    setOriginalPrice(54999);
+    setDiscount(9);
+    setStock(10);
+    setColours('Cosmic Black, Titanium Gray, Aurora Blue');
+    setDescription('Flagship consumer electronics smartphone engineered for speed and clarity. Features Octa-Core AI processor, 120Hz AMOLED display, 108MP camera, and 5000mAh battery.');
+    setImage1('https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=800&auto=format&fit=crop');
+    setImage2('https://images.unsplash.com/photo-1565849904461-04a58ad377e0?q=80&w=800&auto=format&fit=crop');
+    setSpecs([
+      { key: 'Processor', value: 'Snapdragon 8 Gen 3 AI (4nm)' },
+      { key: 'RAM', value: '12GB High Speed' },
+      { key: 'Storage', value: '256GB High-Speed Storage' },
+      { key: 'Display', value: '6.7-inch 120Hz AMOLED Pro' },
+      { key: 'Camera', value: '108MP OIS Main + 12MP Ultra-wide' },
+      { key: 'Battery', value: '5000 mAh with 67W Turbo Charge' }
+    ]);
+  };
+
   const openCreateModal = () => {
     setEditingProduct(null);
     setName('');
     setBrand('');
     setCategoryId(categories[0]?.id || '');
     setSubcategory('');
-    setPrice(9999);
-    setOriginalPrice(11999);
-    setStock(15);
+    setPrice(49999);
+    setOriginalPrice(54999);
+    setDiscount(9);
+    setStock(10);
+    setColours('Phantom Black, Titanium Silver, Sky Blue');
     setDescription('');
-    setImage1('https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop');
+    setImage1('https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=800&auto=format&fit=crop');
     setImage2('');
     setSpecs([
-      { key: 'Processor', value: 'High-Performance Octa-Core' },
-      { key: 'RAM', value: '16GB High Speed' }
+      { key: 'Processor', value: 'Snapdragon 8 Gen 3 (4nm)' },
+      { key: 'RAM', value: '12GB LPDDR5X' },
+      { key: 'Storage', value: '256GB' },
+      { key: 'Display', value: '6.7-inch 120Hz AMOLED' }
     ]);
     setFormError(null);
     setIsModalOpen(true);
@@ -97,13 +139,16 @@ export const AdminProductsPage: React.FC = () => {
     setSubcategory(product.subcategory || '');
     setPrice(product.price);
     setOriginalPrice(product.originalPrice);
+    setDiscount(product.discount || (product.originalPrice > product.price ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0));
     setStock(product.stock);
+    const existingColours = product.colors || product.availableColours || [];
+    setColours(existingColours.join(', '));
     setDescription(product.description);
     setImage1(product.images[0] || '');
     setImage2(product.images[1] || '');
     
     const specEntries = Object.entries(product.specifications || {}).map(([key, value]) => ({ key, value }));
-    setSpecs(specEntries.length ? specEntries : [{ key: 'Feature', value: '' }]);
+    setSpecs(specEntries.length ? specEntries : [{ key: 'Processor', value: '' }, { key: 'RAM', value: '' }]);
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -137,6 +182,15 @@ export const AdminProductsPage: React.FC = () => {
       const images = [image1.trim()];
       if (image2.trim()) images.push(image2.trim());
 
+      const parsedColours = colours
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      const calculatedDiscount = discount > 0 
+        ? discount 
+        : (originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0);
+
       const payload = {
         name: name.trim(),
         brand: brand.trim(),
@@ -144,7 +198,10 @@ export const AdminProductsPage: React.FC = () => {
         subcategory: subcategory.trim() || undefined,
         price,
         originalPrice: originalPrice > price ? originalPrice : price,
+        discount: calculatedDiscount,
         stock,
+        colors: parsedColours,
+        availableColours: parsedColours,
         description: description.trim(),
         images,
         specifications
@@ -172,6 +229,19 @@ export const AdminProductsPage: React.FC = () => {
       setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: newStock } : p));
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleViewActivity = async (product: Product) => {
+    try {
+      setActivityProduct(product);
+      setActivityLoading(true);
+      const data = await api.getProductActivity(product.id);
+      setActivityData(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActivityLoading(false);
     }
   };
 
@@ -265,30 +335,76 @@ export const AdminProductsPage: React.FC = () => {
       )
     },
     {
+      id: 'colours',
+      header: 'Colours',
+      sortable: false,
+      hideOnTablet: true,
+      cell: (p) => {
+        const cols = p.colors || p.availableColours || [];
+        if (!cols || cols.length === 0) return <span className="text-slate-400 text-xs">—</span>;
+        return (
+          <div className="flex flex-wrap gap-1 max-w-[130px]">
+            {cols.map((col, idx) => (
+              <span key={idx} className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-750 border border-slate-200">
+                {col}
+              </span>
+            ))}
+          </div>
+        );
+      }
+    },
+    {
       id: 'stock',
-      header: 'Stock',
+      header: 'Stock & Status',
       sortable: true,
       sortKey: (p) => p.stock,
       cell: (p) => (
-        <div className="flex items-center gap-1.5">
-          <input
-            type="number"
-            min="0"
-            value={p.stock}
-            onChange={(e) => handleQuickStockUpdate(p.id, Number(e.target.value))}
-            className={`w-16 p-1 border rounded-lg text-center text-xs font-bold ${
-              p.stock === 0 
-                ? 'border-rose-400 bg-rose-50 text-rose-800'
-                : p.stock <= 10 
-                ? 'border-amber-400 bg-amber-50 text-amber-800' 
-                : 'border-slate-200'
-            }`}
-          />
-          {p.stock === 0 ? (
-            <span className="text-[10px] text-rose-600 font-bold uppercase">Out</span>
-          ) : p.stock <= 10 ? (
-            <span className="text-[10px] text-amber-600 font-bold uppercase">Low</span>
-          ) : null}
+        <div className="space-y-1">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => handleQuickStockUpdate(p.id, Math.max(0, p.stock - 1))}
+              disabled={p.stock === 0}
+              className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-xs disabled:opacity-40 cursor-pointer shadow-2xs"
+              title="Decrease stock by 1"
+            >
+              -
+            </button>
+            <input
+              type="number"
+              min="0"
+              value={p.stock}
+              onChange={(e) => handleQuickStockUpdate(p.id, Math.max(0, Number(e.target.value)))}
+              className={`w-14 p-1 border rounded-lg text-center text-xs font-bold ${
+                p.stock === 0 
+                  ? 'border-rose-400 bg-rose-50 text-rose-800 ring-1 ring-rose-300'
+                  : p.stock <= 10 
+                  ? 'border-amber-400 bg-amber-50 text-amber-800' 
+                  : 'border-slate-200 bg-white'
+              }`}
+            />
+            <button
+              onClick={() => handleQuickStockUpdate(p.id, p.stock + 1)}
+              className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-xs cursor-pointer shadow-2xs"
+              title="Increase stock by 1"
+            >
+              +
+            </button>
+          </div>
+          <div>
+            {p.stock === 0 ? (
+              <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-rose-100 text-rose-700 border border-rose-200 inline-block animate-pulse">
+                Out of Stock
+              </span>
+            ) : p.stock <= 10 ? (
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 text-amber-800 border border-amber-200 inline-block">
+                Low Stock ({p.stock})
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200 inline-block">
+                In Stock ({p.stock})
+              </span>
+            )}
+          </div>
         </div>
       )
     },
@@ -309,6 +425,14 @@ export const AdminProductsPage: React.FC = () => {
       headerClassName: 'text-right',
       cell: (p) => (
         <div className="flex items-center justify-end gap-1.5">
+          <button
+            onClick={() => handleViewActivity(p)}
+            className="p-1.5 text-cyan-700 bg-cyan-50 hover:bg-cyan-100 rounded-lg transition cursor-pointer flex items-center gap-1 border border-cyan-200"
+            title="View customer purchases and order history for this product"
+          >
+            <ShoppingBag className="w-3.5 h-3.5 text-cyan-600" />
+            <span className="text-[11px] font-bold hidden sm:inline">Orders</span>
+          </button>
           <button
             onClick={() => openEditModal(p)}
             className="p-1.5 text-slate-500 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition cursor-pointer"
@@ -416,6 +540,13 @@ export const AdminProductsPage: React.FC = () => {
             </div>
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
               <button
+                onClick={() => handleViewActivity(p)}
+                className="px-2.5 py-1.5 bg-cyan-50 text-cyan-700 font-bold text-xs rounded-lg hover:bg-cyan-100 cursor-pointer flex items-center gap-1"
+              >
+                <ShoppingBag className="w-3.5 h-3.5 text-cyan-600" />
+                <span>Orders</span>
+              </button>
+              <button
                 onClick={() => openEditModal(p)}
                 className="px-3 py-1.5 bg-indigo-50 text-indigo-700 font-bold text-xs rounded-lg hover:bg-indigo-100 cursor-pointer"
               >
@@ -437,9 +568,22 @@ export const AdminProductsPage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-6 my-8">
             <div className="flex items-center justify-between pb-3 border-b">
-              <h3 className="font-heading font-black text-xl text-slate-900">
-                {editingProduct ? 'Edit Product' : 'Add New Product'}
-              </h3>
+              <div className="flex items-center gap-3">
+                <h3 className="font-heading font-black text-xl text-slate-900">
+                  {editingProduct ? 'Edit Product' : 'Add New Product'}
+                </h3>
+                {!editingProduct && (
+                  <button
+                    type="button"
+                    onClick={handleQuickFillSamplePhone}
+                    className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[11px] rounded-lg transition flex items-center gap-1 cursor-pointer"
+                    title="Pre-fill sample 5G smartphone with 10 stock, specifications and colours"
+                  >
+                    <Sparkles className="w-3 h-3 text-amber-600" />
+                    <span>⚡ Fill Sample Phone (Stock: 10)</span>
+                  </button>
+                )}
+              </div>
               <button onClick={() => setIsModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
@@ -549,6 +693,37 @@ export const AdminProductsPage: React.FC = () => {
                     onChange={(e) => setOriginalPrice(Number(e.target.value))}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden font-mono"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Discount Percentage (%)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="99"
+                    placeholder="e.g. 10"
+                    value={discount}
+                    onChange={(e) => setDiscount(Number(e.target.value))}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden font-mono"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Available Colours (Comma-separated)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Cosmic Black, Titanium Gray, Aurora Blue"
+                    value={colours}
+                    onChange={(e) => setColours(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Separate multiple colors with commas so customers can choose their variant.
+                  </p>
                 </div>
 
                 <div className="sm:col-span-2">
@@ -690,6 +865,141 @@ export const AdminProductsPage: React.FC = () => {
                 className="flex-1 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-md"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Product Purchase Activity & Related Orders Modal */}
+      {activityProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-6 my-8 max-h-[90vh] flex flex-col">
+            <div className="flex items-start justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <img
+                  src={activityProduct.images[0]}
+                  alt=""
+                  className="w-14 h-14 rounded-2xl object-cover border border-slate-200"
+                />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{activityProduct.brand}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700">{activityProduct.categoryName}</span>
+                  </div>
+                  <h3 className="font-heading font-black text-lg text-slate-900 leading-tight">
+                    {activityProduct.name}
+                  </h3>
+                  <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+                    <span>Price: ₹{activityProduct.price.toLocaleString('en-IN')}</span>
+                    <span>•</span>
+                    <span className={activityProduct.stock === 0 ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'}>
+                      Current Stock: {activityProduct.stock} units
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => { setActivityProduct(null); setActivityData(null); }}
+                className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Metrics bar */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200/80">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Units Sold</span>
+                <span className="text-xl font-black text-slate-900">{activityData?.totalUnitsSold ?? 0}</span>
+              </div>
+              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200/80">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Sales</span>
+                <span className="text-xl font-black text-emerald-600">
+                  ₹{(activityData?.totalRevenue ?? 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200/80">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Orders Count</span>
+                <span className="text-xl font-black text-indigo-600">{activityData?.orders?.length ?? 0}</span>
+              </div>
+            </div>
+
+            {/* Orders list */}
+            <div className="flex-1 overflow-y-auto space-y-3 min-h-[160px] pr-1">
+              <h4 className="font-bold text-xs text-slate-700 uppercase tracking-wider">
+                Customer Purchase Records ({activityData?.orders?.length || 0})
+              </h4>
+
+              {activityLoading ? (
+                <div className="py-12 text-center text-xs text-slate-400 animate-pulse">
+                  Loading order history from database...
+                </div>
+              ) : !activityData || activityData.orders.length === 0 ? (
+                <div className="py-10 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <ShoppingBag className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-xs font-bold text-slate-600">No orders placed for this product yet.</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    When customers purchase this item, the authenticated customer details, order ID, and quantities ordered will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {activityData.orders.map((ord: any) => (
+                    <div
+                      key={ord.orderId}
+                      className="p-3.5 bg-slate-50 hover:bg-slate-100/80 transition rounded-2xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-black text-indigo-600 text-xs">#{ord.orderId}</span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                            {ord.orderStatus}
+                          </span>
+                          {ord.selectedColor && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-200 text-slate-700">
+                              Colour: {ord.selectedColor}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-slate-700 font-semibold">
+                          <User className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{ord.customerName}</span>
+                          <span className="text-slate-400 font-normal">({ord.customerEmail})</span>
+                        </div>
+                        <div className="text-[11px] text-slate-400">
+                          {new Date(ord.orderDate).toLocaleString('en-IN', {
+                            dateStyle: 'medium',
+                            timeStyle: 'short'
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="text-left sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200">
+                        <div className="text-[11px] text-slate-500">
+                          Qty: <span className="font-black text-slate-900 text-sm">{ord.quantity}</span> × ₹{ord.priceAtPurchase.toLocaleString('en-IN')}
+                        </div>
+                        <div className="font-black text-slate-900 text-sm mt-0.5">
+                          ₹{ord.itemTotal.toLocaleString('en-IN')}
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          Paid via {ord.paymentMethod}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t flex justify-end">
+              <button
+                type="button"
+                onClick={() => { setActivityProduct(null); setActivityData(null); }}
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition cursor-pointer"
+              >
+                Close View
               </button>
             </div>
           </div>

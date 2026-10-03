@@ -137,6 +137,28 @@ export const api = {
       body: JSON.stringify({ stock })
     }),
 
+  getProductActivity: (id: string) =>
+    request<{
+      product: Product;
+      orders: {
+        orderId: string;
+        userId: string;
+        customerName: string;
+        customerEmail: string;
+        customerPhone: string;
+        quantity: number;
+        priceAtPurchase: number;
+        itemTotal: number;
+        orderTotal: number;
+        paymentMethod: string;
+        orderStatus: string;
+        orderDate: string;
+        selectedColor?: string;
+      }[];
+      totalUnitsSold: number;
+      totalRevenue: number;
+    }>(`/admin/products/${id}/activity`),
+
   deleteProduct: (id: string) =>
     request<{ success: boolean; message: string }>(`/products/${id}`, {
       method: 'DELETE'
@@ -165,10 +187,10 @@ export const api = {
   // Cart
   getCart: () => request<{ items: CartItem[]; subtotal: number; discount: number; total: number }>('/cart'),
 
-  addToCart: (productId: string, quantity: number = 1) =>
+  addToCart: (productId: string, quantity: number = 1, selectedColor?: string) =>
     request<{ items: CartItem[]; subtotal: number; discount: number; total: number; message: string }>('/cart/add', {
       method: 'POST',
-      body: JSON.stringify({ productId, quantity })
+      body: JSON.stringify({ productId, quantity, selectedColor })
     }),
 
   updateCartQuantity: (productId: string, quantity: number) =>
@@ -221,10 +243,25 @@ export const api = {
     }),
 
   // Reviews
-  addReview: (productId: string, rating: number, comment: string) =>
-    request<{ review: Review; product: Product; reviews: Review[] }>(`/products/${productId}/reviews`, {
+  getVerifiedPurchaseOrders: (productId: string) =>
+    request<{
+      hasPurchased: boolean;
+      orders: {
+        orderId: string;
+        orderDate: string;
+        status: string;
+        quantity: number;
+        selectedColor?: string;
+        price: number;
+        alreadyReviewed: boolean;
+        existingReview?: Review | null;
+      }[];
+    }>(`/products/${productId}/verified-purchase`),
+
+  addReview: (productId: string, rating: number, comment: string, orderId: string) =>
+    request<{ review: Review; product: Product; reviews: Review[]; message?: string }>(`/products/${productId}/reviews`, {
       method: 'POST',
-      body: JSON.stringify({ rating, comment })
+      body: JSON.stringify({ rating, comment, orderId })
     }),
 
   // Admin

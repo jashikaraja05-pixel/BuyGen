@@ -864,37 +864,49 @@ export const initialReviews: Review[] = [
   {
     id: 'rev-1',
     productId: 'prod-sp-1',
+    orderId: 'BG-2026-98101',
     userId: 'user-demo-1',
     userName: 'Rohan Sharma',
     rating: 5,
     comment: 'The desert titanium finish is stunning! Battery easily lasts 1.5 days of heavy productivity. 5x zoom is crisp even in low light.',
+    verifiedPurchase: true,
+    orderDate: '2026-09-12T10:30:00.000Z',
     createdAt: '2026-09-15T10:30:00.000Z'
   },
   {
     id: 'rev-2',
     productId: 'prod-sp-1',
+    orderId: 'BG-2026-98102',
     userId: 'user-demo-2',
     userName: 'Priya Mehta',
     rating: 5,
     comment: 'Upgrade from iPhone 13 was massive. The 120Hz ProMotion screen and camera shutter button make it feel like a real professional camera.',
+    verifiedPurchase: true,
+    orderDate: '2026-09-18T14:15:00.000Z',
     createdAt: '2026-09-20T14:15:00.000Z'
   },
   {
     id: 'rev-3',
     productId: 'prod-lp-1',
+    orderId: 'BG-2026-98103',
     userId: 'user-demo-1',
     userName: 'Rohan Sharma',
     rating: 5,
     comment: 'The M3 Max compiles our massive monorepo in 18 seconds without the fans even turning on. Best developer machine ever built.',
+    verifiedPurchase: true,
+    orderDate: '2026-09-08T12:00:00.000Z',
     createdAt: '2026-09-10T12:00:00.000Z'
   },
   {
     id: 'rev-4',
     productId: 'prod-hp-1',
-    userId: 'user-demo-2',
-    userName: 'Priya Mehta',
+    orderId: 'BG-2026-98124',
+    userId: 'cust-1',
+    userName: 'Alex Johnson',
     rating: 5,
     comment: 'Flight ANC is pure silence. Cuts out engine hum completely. Super lightweight on head for 8+ hour work sessions.',
-    createdAt: '2026-09-18T09:45:00.000Z'
+    verifiedPurchase: true,
+    orderDate: '2026-09-22T11:20:00.000Z',
+    createdAt: '2026-09-23T09:45:00.000Z'
   }
 ];

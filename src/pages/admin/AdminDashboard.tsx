@@ -44,11 +44,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setAdminTab, nav
       
       {/* Title */}
       <div>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 text-[11px] font-bold uppercase tracking-wider">
+            Consumer Electronics Store • கன்ஸ்யூமர் எலக்ட்ரானிக்ஸ்
+          </span>
+        </div>
         <h1 className="font-heading font-black text-2xl sm:text-3xl text-slate-900">
-          Admin Performance Overview
+          Consumer Electronics Store Manager Dashboard
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 mt-1">
-          Live statistics computed directly from PostgreSQL / persistent Firestore collections.
+          Live statistics, real-time inventory tracking, and purchase records from persistent database.
         </p>
       </div>
 

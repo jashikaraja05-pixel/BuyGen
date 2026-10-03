@@ -159,6 +159,35 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, navigate }) =
             </div>
             <span className="text-xs text-slate-500">({product.reviewCount})</span>
           </div>
+
+          {/* Available Colours */}
+          {((product.colors && product.colors.length > 0) || (product.availableColours && product.availableColours.length > 0)) && (
+            <div className="flex items-center gap-1.5 mt-2">
+              <div className="flex items-center -space-x-1">
+                {(product.colors || product.availableColours || []).slice(0, 3).map((col, idx) => (
+                  <span
+                    key={idx}
+                    title={col}
+                    className="w-3 h-3 rounded-full border border-slate-900 ring-1 ring-slate-700/50"
+                    style={{
+                      backgroundColor:
+                        col.toLowerCase().includes('black') ? '#0f172a' :
+                        col.toLowerCase().includes('white') ? '#f1f5f9' :
+                        col.toLowerCase().includes('blue') ? '#38bdf8' :
+                        col.toLowerCase().includes('gray') || col.toLowerCase().includes('grey') || col.toLowerCase().includes('titanium') || col.toLowerCase().includes('silver') ? '#94a3b8' :
+                        col.toLowerCase().includes('gold') ? '#facc15' :
+                        col.toLowerCase().includes('green') ? '#4ade80' :
+                        col.toLowerCase().includes('red') ? '#f87171' :
+                        col.toLowerCase().includes('purple') ? '#c084fc' : '#64748b'
+                    }}
+                  />
+                ))}
+              </div>
+              <span className="text-[10px] text-slate-400 font-medium">
+                {(product.colors || product.availableColours || []).length} {((product.colors || product.availableColours || []).length === 1) ? 'colour' : 'colours'}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Pricing & Cart Action */}

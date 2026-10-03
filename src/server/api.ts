@@ -208,6 +208,16 @@ apiRouter.patch('/products/:id/stock', requireAdmin, async (req: AuthenticatedRe
   }
 });
 
+// Admin product purchase activity & related orders
+apiRouter.get('/admin/products/:id/activity', requireAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    const activity = await dbStore.getProductActivity(req.params.id);
+    res.json(activity);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || 'Failed to fetch product activity' });
+  }
+});
+
 apiRouter.delete('/products/:id', requireAdmin, async (req: AuthenticatedRequest, res) => {
   try {
     await dbStore.deleteProduct(req.params.id);
@@ -266,11 +276,11 @@ apiRouter.get('/cart', requireAuth, async (req: AuthenticatedRequest, res) => {
 
 apiRouter.post('/cart/add', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const { productId, quantity = 1 } = req.body;
+    const { productId, quantity = 1, selectedColor } = req.body;
     if (!productId) {
       return res.status(400).json({ error: 'Product ID is required.' });
     }
-    const items = await dbStore.addToCart(req.user!.id, productId, Number(quantity));
+    await dbStore.addToCart(req.user!.id, productId, Number(quantity), selectedColor);
     const cart = await dbStore.getCart(req.user!.id);
     res.json({ ...cart, message: 'Added to cart successfully!' });
   } catch (err: any) {
@@ -406,18 +416,35 @@ apiRouter.patch('/orders/:id/status', requireAdmin, async (req: AuthenticatedReq
   }
 });
 
-// ================= REVIEWS =================
+// ================= REVIEWS (VERIFIED PURCHASE LINKED) =================
+apiRouter.get('/products/:id/verified-purchase', async (req: AuthenticatedRequest, res) => {
+  try {
+    if (!req.user) {
+      return res.json({ hasPurchased: false, orders: [] });
+    }
+
+    const check = dbStore.getUserEligibleOrdersForProduct(req.user.id, req.params.id);
+    res.json(check);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to check verified purchase status' });
+  }
+});
+
 apiRouter.post('/products/:id/reviews', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const { rating, comment } = req.body;
+    const { rating, comment, orderId } = req.body;
     if (!rating || !comment) {
       return res.status(400).json({ error: 'Rating and review comment are required.' });
+    }
+    if (!orderId || typeof orderId !== 'string' || !orderId.trim()) {
+      return res.status(400).json({ error: 'A valid Order ID is required to verify your purchase before leaving a review.' });
     }
 
     const review = await dbStore.addReview(
       req.params.id,
       req.user!.id,
       req.user!.name,
+      orderId.trim(),
       Number(rating),
       comment
     );
@@ -425,9 +452,14 @@ apiRouter.post('/products/:id/reviews', requireAuth, async (req: AuthenticatedRe
     const updatedProduct = await dbStore.getProductById(req.params.id);
     const reviews = await dbStore.getReviews(req.params.id);
 
-    res.status(201).json({ review, product: updatedProduct, reviews });
+    res.status(201).json({ 
+      review, 
+      product: updatedProduct, 
+      reviews,
+      message: `Verified review linked to Order #${orderId.trim()} saved successfully!` 
+    });
   } catch (err: any) {
-    res.status(400).json({ error: err.message || 'Failed to add review' });
+    res.status(400).json({ error: err.message || 'Failed to add verified review' });
   }
 });
 

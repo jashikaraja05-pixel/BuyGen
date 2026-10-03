@@ -28,6 +28,8 @@ export interface Product {
   rating: number;
   reviewCount: number;
   images: string[];
+  colors?: string[];
+  availableColours?: string[];
   specifications: Record<string, string>;
   featured?: boolean;
   trending?: boolean;
@@ -57,6 +59,7 @@ export interface CartItem {
   image: string;
   quantity: number;
   stock: number;
+  selectedColor?: string;
 }
 
 export interface WishlistItem {
@@ -101,11 +104,15 @@ export interface Order {
 export interface Review {
   id: string;
   productId: string;
+  orderId: string; // Linked specific verified order ID
   userId: string;
   userName: string;
-  rating: number;
+  rating: number; // 1 to 5 stars
   comment: string;
+  verifiedPurchase?: boolean;
+  orderDate?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface ProductFilters {
