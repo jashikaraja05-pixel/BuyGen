@@ -126,7 +126,7 @@ apiRouter.post('/auth/logout', (_req, res) => {
 });
 
 // ================= PRODUCT ROUTES =================
-apiRouter.get('/products', async (req, res) => {
+apiRouter.get('/products', async (req: AuthenticatedRequest, res) => {
   try {
     const {
       category,
@@ -137,7 +137,8 @@ apiRouter.get('/products', async (req, res) => {
       minRating,
       inStockOnly,
       search,
-      sortBy
+      sortBy,
+      adminEmail
     } = req.query;
 
     const filters = {
@@ -149,13 +150,32 @@ apiRouter.get('/products', async (req, res) => {
       minRating: minRating ? Number(minRating) : undefined,
       inStockOnly: inStockOnly === 'true',
       search: search as string,
-      sortBy: sortBy as any
+      sortBy: sortBy as any,
+      adminEmail: adminEmail as string
     };
 
     const { products, total } = await dbStore.getProducts(filters);
+
+    // Record customer search query for admin monitoring
+    if (search && typeof search === 'string' && search.trim()) {
+      dbStore.recordSearch(search, req.user, total);
+    }
+
     res.json({ products, total });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to fetch products' });
+  }
+});
+
+apiRouter.post('/search-log', async (req: AuthenticatedRequest, res) => {
+  try {
+    const { query, resultsCount } = req.body;
+    if (query && typeof query === 'string' && query.trim()) {
+      dbStore.recordSearch(query, req.user, resultsCount || 0);
+    }
+    res.json({ success: true });
+  } catch {
+    res.json({ success: false });
   }
 });
 
@@ -180,7 +200,8 @@ apiRouter.get('/products/:id', async (req, res) => {
 
 apiRouter.post('/products', requireAdmin, async (req: AuthenticatedRequest, res) => {
   try {
-    const newProduct = await dbStore.createProduct(req.body);
+    const adminEmail = req.user?.email || req.body.adminEmail;
+    const newProduct = await dbStore.createProduct(req.body, adminEmail);
     res.status(201).json({ product: newProduct, message: 'Product created successfully' });
   } catch (err: any) {
     res.status(400).json({ error: err.message || 'Failed to create product' });
@@ -465,12 +486,31 @@ apiRouter.post('/products/:id/reviews', requireAuth, async (req: AuthenticatedRe
 });
 
 // ================= ADMIN DASHBOARD & USER MANAGEMENT =================
-apiRouter.get('/admin/metrics', requireAdmin, async (_req: AuthenticatedRequest, res) => {
+apiRouter.get('/admin/metrics', requireAdmin, async (req: AuthenticatedRequest, res) => {
   try {
-    const metrics = await dbStore.getAdminMetrics();
+    const adminEmail = (req.query.adminEmail as string) || req.user?.email;
+    const metrics = await dbStore.getAdminMetrics(adminEmail);
     res.json(metrics);
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to compute admin metrics' });
+  }
+});
+
+apiRouter.get('/admin/searches', requireAdmin, async (_req: AuthenticatedRequest, res) => {
+  try {
+    const searches = dbStore.getSearchLogs();
+    res.json({ searches });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to fetch searches' });
+  }
+});
+
+apiRouter.get('/admin/logins', requireAdmin, async (_req: AuthenticatedRequest, res) => {
+  try {
+    const logins = dbStore.getLoginLogs();
+    res.json({ logins });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to fetch logins' });
   }
 });
 
@@ -773,25 +813,15 @@ apiRouter.post('/ai/search', async (req, res) => {
       maxPrice = val;
     }
 
-    // Categories
+    // Categories from active database
     const categories = await dbStore.getCategories();
     for (const cat of categories) {
-      if (q.includes(cat.name.toLowerCase()) || q.includes(cat.slug.toLowerCase())) {
+      const matchName = q.includes(cat.name.toLowerCase()) || q.includes(cat.slug.toLowerCase());
+      const matchSub = cat.subcategories?.some(s => q.includes(s.toLowerCase()));
+      if (matchName || matchSub) {
         category = cat.id;
         break;
       }
-    }
-
-    // Common abbreviations
-    if (!category) {
-      if (q.includes('phone') || q.includes('mobile')) category = 'cat-1';
-      else if (q.includes('laptop') || q.includes('macbook')) category = 'cat-2';
-      else if (q.includes('headphone') || q.includes('earbud') || q.includes('earphone')) category = 'cat-3';
-      else if (q.includes('monitor') || q.includes('screen')) category = 'cat-4';
-      else if (q.includes('keyboard') || q.includes('mouse')) category = 'cat-5';
-      else if (q.includes('speaker') || q.includes('soundbar')) category = 'cat-6';
-      else if (q.includes('watch')) category = 'cat-7';
-      else if (q.includes('camera') || q.includes('vlog')) category = 'cat-8';
     }
 
     // Clean search text by removing filter trigger phrases

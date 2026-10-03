@@ -10,7 +10,8 @@ import {
   Tag, 
   ChevronRight,
   SlidersHorizontal,
-  Star
+  Star,
+  Package
 } from 'lucide-react';
 import type { Product, Category } from '../types/index.ts';
 import { api } from '../services/api.ts';
@@ -22,6 +23,7 @@ interface HomePageProps {
 
 export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [trendingProducts, setTrendingProducts] = useState<Product[]>([]);
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
@@ -49,10 +51,11 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
         setCategories(catRes.categories || []);
 
         const all = prodRes.products || [];
-        setFeaturedProducts(all.filter(p => p.featured).slice(0, 4));
-        setTrendingProducts(all.filter(p => p.trending).slice(0, 4));
-        setNewArrivals(all.filter(p => p.newArrival).slice(0, 4));
-        setDealProducts(all.filter(p => p.discount >= 10).slice(0, 4));
+        setAllProducts(all);
+        setFeaturedProducts(all.filter(p => p.featured));
+        setTrendingProducts(all.filter(p => p.trending));
+        setNewArrivals(all.filter(p => p.newArrival));
+        setDealProducts(all.filter(p => p.discount >= 10));
       } catch (err) {
         console.error('Failed to load homepage data', err);
       } finally {
@@ -132,45 +135,72 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
 
           {/* Hero Gadget Showcase Card */}
           <div className="lg:col-span-5 relative">
-            <div className="relative rounded-2xl bg-gradient-to-b from-slate-800/60 to-slate-900/60 border border-slate-700/80 p-6 backdrop-blur-xl shadow-2xl">
-              <div className="flex items-center justify-between mb-4">
-                <span className="px-2.5 py-1 text-[11px] font-bold uppercase rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  Featured Innovation
-                </span>
-                <div className="flex items-center gap-1 text-amber-400 text-xs font-bold">
-                  <Star className="w-3.5 h-3.5 fill-amber-400" />
-                  <span>4.9 / 5.0</span>
+            {allProducts.length > 0 ? (
+              <div className="relative rounded-2xl bg-gradient-to-b from-slate-800/60 to-slate-900/60 border border-slate-700/80 p-6 backdrop-blur-xl shadow-2xl">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="px-2.5 py-1 text-[11px] font-bold uppercase rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                    {allProducts[0].badge || 'Featured Innovation'}
+                  </span>
+                  <div className="flex items-center gap-1 text-amber-400 text-xs font-bold">
+                    <Star className="w-3.5 h-3.5 fill-amber-400" />
+                    <span>{allProducts[0].rating} / 5.0</span>
+                  </div>
+                </div>
+
+                <div className="rounded-xl overflow-hidden bg-slate-800/90 aspect-video mb-4 relative">
+                  <img
+                    src={allProducts[0].images[0] || 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=800&auto=format&fit=crop'}
+                    alt={allProducts[0].name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+
+                <h3 className="font-heading font-bold text-lg text-white truncate">
+                  {allProducts[0].name}
+                </h3>
+                <p className="text-xs text-slate-400 mt-1 line-clamp-2">
+                  {allProducts[0].description}
+                </p>
+
+                <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-slate-400">Stock: {allProducts[0].stock} units</span>
+                    <p className="font-heading font-extrabold text-xl text-white">₹{allProducts[0].price.toLocaleString('en-IN')}</p>
+                  </div>
+                  <button
+                    onClick={() => navigate(`/products/${allProducts[0].id}`)}
+                    className="px-4 py-2 bg-white text-slate-900 font-bold text-xs rounded-lg hover:bg-slate-100 transition cursor-pointer"
+                  >
+                    View Details
+                  </button>
                 </div>
               </div>
-
-              <div className="rounded-xl overflow-hidden bg-slate-800/90 aspect-video mb-4 relative">
-                <img
-                  src="https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=800&auto=format&fit=crop"
-                  alt="MacBook Pro M3 Max"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-
-              <h3 className="font-heading font-bold text-lg text-white">
-                Apple MacBook Pro 16" M3 Max
-              </h3>
-              <p className="text-xs text-slate-400 mt-1 line-clamp-2">
-                14-core CPU, 30-core GPU, 36GB Unified RAM, Liquid Retina XDR 120Hz display.
-              </p>
-
-              <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between">
+            ) : (
+              <div className="relative rounded-2xl bg-gradient-to-b from-slate-900 to-indigo-950/80 border border-slate-700/80 p-6 backdrop-blur-xl shadow-2xl text-center space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center mx-auto border border-indigo-500/30">
+                  <Package className="w-7 h-7" />
+                </div>
                 <div>
-                  <span className="text-xs text-slate-400">Special Price</span>
-                  <p className="font-heading font-extrabold text-xl text-white">₹3,49,900</p>
+                  <span className="px-2.5 py-1 text-[11px] font-black uppercase rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 inline-block mb-2">
+                    Clean Catalog (0 Mock Items)
+                  </span>
+                  <h3 className="font-heading font-black text-xl text-white">
+                    Store Catalog Ready
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Zero mock products loaded. Products added in the Admin Console will instantly showcase here.
+                  </p>
                 </div>
-                <button
-                  onClick={() => navigate('/products/prod-lp-1')}
-                  className="px-4 py-2 bg-white text-slate-900 font-bold text-xs rounded-lg hover:bg-slate-100 transition cursor-pointer"
-                >
-                  View Details
-                </button>
+                <div className="pt-2">
+                  <button
+                    onClick={() => navigate('/admin')}
+                    className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs rounded-xl shadow-lg transition cursor-pointer"
+                  >
+                    Open Admin Console & Add Product
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
         </div>
@@ -271,7 +301,32 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
         </div>
       </section>
 
-      {/* 4. Featured Products */}
+      {/* 4. Zero Products Ready State */}
+      {allProducts.length === 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-[#0c0f26] rounded-3xl p-8 sm:p-12 border border-slate-800 text-center space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mx-auto border border-indigo-500/20">
+              <Package className="w-8 h-8" />
+            </div>
+            <h2 className="font-heading font-black text-2xl text-white">
+              Store Catalog Ready for Inventory
+            </h2>
+            <p className="text-sm text-slate-400 max-w-lg mx-auto">
+              All mock data has been removed (0 items). Products will be displayed to customers as soon as they are stocked by the store administrator.
+            </p>
+            <div className="pt-2">
+              <button
+                onClick={() => navigate('/admin')}
+                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/30 transition cursor-pointer"
+              >
+                Go to Admin Console & Stock Products
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 5. Featured Products */}
       {featuredProducts.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">

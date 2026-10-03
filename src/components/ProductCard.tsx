@@ -206,16 +206,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, navigate }) =
           {/* Stock status indicator */}
           <div className="flex items-center justify-between text-[11px] font-medium mt-2">
             {isOutOfStock ? (
-              <span className="text-rose-400 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" /> Out of stock
+              <span className="text-rose-400 font-bold flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" /> Out of stock
               </span>
-            ) : product.stock <= 5 ? (
-              <span className="text-amber-400 font-semibold">
-                Only {product.stock} left!
+            ) : product.stock <= 10 ? (
+              <span className="text-amber-300 font-black flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5 text-amber-400" /> Low Stock ({product.stock} left)
               </span>
             ) : (
-              <span className="text-emerald-400 flex items-center gap-1">
-                <Check className="w-3 h-3" /> In Stock ({product.stock})
+              <span className="text-emerald-400 font-bold flex items-center gap-1">
+                <Check className="w-3.5 h-3.5" /> In Stock ({product.stock})
               </span>
             )}
           </div>

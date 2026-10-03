@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, doc, getDocFromServer, setDoc, deleteDoc, setLogLevel } from 'firebase/firestore';
+import { getFirestore, doc, collection, getDocs, getDocFromServer, setDoc, deleteDoc, setLogLevel } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json' with { type: 'json' };
 
 // Silence internal gRPC idle stream disconnect warnings
@@ -19,7 +19,9 @@ import type {
   Review, 
   ProductFilters, 
   AdminMetrics, 
-  OrderStatus 
+  OrderStatus,
+  SearchLog,
+  UserLoginLog
 } from '../types/index.ts';
 import { initialCategories, initialProducts, initialReviews } from './seedData.ts';
 import { getExpandedSearchTokens } from '../lib/spellingNormalizer.ts';
@@ -41,6 +43,8 @@ class DatabaseStore {
   private wishlists: Map<string, Set<string>> = new Map(); // userId -> Set<productId>
   private orders: Map<string, Order> = new Map();
   private reviews: Map<string, Review[]> = new Map(); // productId -> reviews
+  private searchLogs: SearchLog[] = [];
+  private loginLogs: UserLoginLog[] = [];
   private initialized: boolean = false;
 
   constructor() {
@@ -128,108 +132,9 @@ class DatabaseStore {
     this.users.set(phantomAdmin.email.toLowerCase(), phantomAdmin);
     this.users.set(defaultCustomer.email.toLowerCase(), defaultCustomer);
 
-    // Seed realistic completed & in-transit orders for rich initial admin dashboard stats
-    const sampleOrder1: Order = {
-      id: 'BG-2026-98124',
-      userId: defaultCustomer.id,
-      customerName: 'Alex Johnson',
-      customerEmail: 'customer@buygen.com',
-      customerPhone: '+91 98765 43210',
-      shippingAddress: {
-        fullName: 'Alex Johnson',
-        phone: '+91 98765 43210',
-        address: 'Flat 402, HighTech Tower, Cyber City',
-        city: 'Bengaluru',
-        state: 'Karnataka',
-        pincode: '560100'
-      },
-      items: [
-        {
-          productId: 'prod-hp-1',
-          name: 'Sony WH-1000XM5 Wireless Noise Cancelling Headphones (Black)',
-          brand: 'Sony',
-          price: 29990,
-          originalPrice: 34990,
-          image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=1000&auto=format&fit=crop',
-          quantity: 1,
-          stock: 35
-        },
-        {
-          productId: 'prod-kb-2',
-          name: 'Logitech MX Master 3S Wireless Performance Mouse (Graphite)',
-          brand: 'Logitech',
-          price: 9495,
-          originalPrice: 10995,
-          image: 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?q=80&w=1000&auto=format&fit=crop',
-          quantity: 1,
-          stock: 40
-        }
-      ],
-      subtotal: 39485,
-      discount: 0,
-      deliveryFee: 0,
-      total: 39485,
-      paymentMethod: 'UPI Simulation',
-      status: 'Delivered',
-      createdAt: '2026-09-22T11:20:00.000Z',
-      updatedAt: '2026-09-25T16:40:00.000Z'
-    };
-
-    const sampleOrder2: Order = {
-      id: 'BG-2026-98319',
-      userId: defaultCustomer.id,
-      customerName: 'Alex Johnson',
-      customerEmail: 'customer@buygen.com',
-      customerPhone: '+91 98765 43210',
-      shippingAddress: {
-        fullName: 'Alex Johnson',
-        phone: '+91 98765 43210',
-        address: 'Flat 402, HighTech Tower, Cyber City',
-        city: 'Bengaluru',
-        state: 'Karnataka',
-        pincode: '560100'
-      },
-      items: [
-        {
-          productId: 'prod-acc-1',
-          name: 'Anker Prime 20,000mAh Power Bank (200W Output with Smart Digital Display)',
-          brand: 'Anker',
-          price: 10999,
-          originalPrice: 12999,
-          image: 'https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?q=80&w=1000&auto=format&fit=crop',
-          quantity: 2,
-          stock: 32
-        }
-      ],
-      subtotal: 21998,
-      discount: 0,
-      deliveryFee: 0,
-      total: 21998,
-      paymentMethod: 'Card Simulation',
-      status: 'Shipped',
-      createdAt: '2026-09-28T09:15:00.000Z',
-      updatedAt: '2026-09-29T10:00:00.000Z'
-    };
-
-    this.orders.set(sampleOrder1.id, sampleOrder1);
-    this.orders.set(sampleOrder2.id, sampleOrder2);
-
-    // Initial cart for demo customer
-    this.carts.set(defaultCustomer.id, [
-      {
-        productId: 'prod-sp-3',
-        name: 'OnePlus 12 5G (16GB RAM + 512GB - Silky Black)',
-        brand: 'OnePlus',
-        price: 64999,
-        originalPrice: 69999,
-        image: 'https://images.unsplash.com/photo-1565849904461-04a58ad377e0?q=80&w=1000&auto=format&fit=crop',
-        quantity: 1,
-        stock: 15
-      }
-    ]);
-
-    // Initial wishlist for demo customer
-    this.wishlists.set(defaultCustomer.id, new Set(['prod-sp-1', 'prod-lp-1']));
+    // Zero mock orders and zero mock login sessions: Only authentic real logins recorded
+    this.loginLogs = [];
+    this.searchLogs = [];
 
     this.initialized = true;
 
@@ -243,12 +148,99 @@ class DatabaseStore {
     try {
       // Test read connection according to Firestore guidelines without write stream
       await getDocFromServer(doc(firestore, 'test', 'connection'));
+
+      // Clean up any legacy hardcoded mock categories from Firestore (cat-1 to cat-10)
+      const legacyMockCatIds = new Set([
+        'cat-1', 'cat-2', 'cat-3', 'cat-4', 'cat-5',
+        'cat-6', 'cat-7', 'cat-8', 'cat-9', 'cat-10'
+      ]);
+
+      // Sync active categories from Firestore
+      try {
+        const catSnap = await getDocs(collection(firestore, 'categories'));
+        for (const docSnap of catSnap.docs) {
+          const catId = docSnap.id;
+          if (legacyMockCatIds.has(catId)) {
+            // Delete legacy hardcoded mock category from Firestore
+            await deleteDoc(doc(firestore, 'categories', catId)).catch(() => {});
+          } else {
+            const data = docSnap.data() as Category;
+            this.categories.set(catId, { ...data, id: catId });
+          }
+        }
+      } catch {
+        // Handled
+      }
+
+      // Sync active products from Firestore
+      try {
+        const prodSnap = await getDocs(collection(firestore, 'products'));
+        for (const docSnap of prodSnap.docs) {
+          const prodId = docSnap.id;
+          const data = docSnap.data() as Product;
+          this.products.set(prodId, { ...data, id: prodId });
+        }
+      } catch {
+        // Handled
+      }
+
+      // Sync active orders from Firestore
+      try {
+        const orderSnap = await getDocs(collection(firestore, 'orders'));
+        for (const docSnap of orderSnap.docs) {
+          const orderId = docSnap.id;
+          const data = docSnap.data() as Order;
+          this.orders.set(orderId, { ...data, id: orderId });
+        }
+      } catch {
+        // Handled
+      }
     } catch {
       // In-memory store handles all application persistence reliably
     }
   }
 
   // --- Auth & Users ---
+  recordLogin(user: User) {
+    const log: UserLoginLog = {
+      id: 'login-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 5),
+      userId: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      loginTime: new Date().toISOString()
+    };
+    this.loginLogs.unshift(log);
+    if (this.loginLogs.length > 200) {
+      this.loginLogs.pop();
+    }
+  }
+
+  getLoginLogs(): UserLoginLog[] {
+    return this.loginLogs;
+  }
+
+  recordSearch(query: string, user?: User | null, resultsCount: number = 0) {
+    if (!query || !query.trim()) return;
+    const cleanQuery = query.trim();
+    const log: SearchLog = {
+      id: 'srch-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 5),
+      query: cleanQuery,
+      userName: user?.name || 'Guest Visitor',
+      userEmail: user?.email || 'guest@buygen.store',
+      resultsCount,
+      timestamp: new Date().toISOString()
+    };
+    this.searchLogs.unshift(log);
+    if (this.searchLogs.length > 200) {
+      this.searchLogs.pop();
+    }
+  }
+
+  getSearchLogs(): SearchLog[] {
+    return this.searchLogs;
+  }
+
   async registerUser(name: string, email: string, passwordPlain: string, role: 'customer' | 'admin' = 'customer'): Promise<User> {
     const normalizedEmail = email.toLowerCase().trim();
     if (this.users.has(normalizedEmail)) {
@@ -269,6 +261,7 @@ class DatabaseStore {
     this.users.set(normalizedEmail, newUser);
 
     const { passwordHash: _, ...userSafe } = newUser;
+    this.recordLogin(userSafe);
     return userSafe;
   }
 
@@ -277,6 +270,7 @@ class DatabaseStore {
     const stored = this.users.get(normalizedEmail);
     if (stored) {
       const { passwordHash: _, ...userSafe } = stored;
+      this.recordLogin(userSafe);
       return userSafe;
     }
 
@@ -301,6 +295,7 @@ class DatabaseStore {
     this.users.set(normalizedEmail, newUser);
 
     const { passwordHash: _, ...userSafe } = newUser;
+    this.recordLogin(userSafe);
     return userSafe;
   }
 
@@ -331,6 +326,7 @@ class DatabaseStore {
     }
 
     const { passwordHash: _, ...userSafe } = stored;
+    this.recordLogin(userSafe);
     return userSafe;
   }
 
@@ -368,6 +364,24 @@ class DatabaseStore {
     });
   }
 
+  private async persistCategoryToFirestore(category: Category) {
+    try {
+      await setDoc(doc(firestore, 'categories', category.id), {
+        ...category
+      });
+    } catch {
+      // In-memory store maintains persistence and immediate consistency
+    }
+  }
+
+  private async deleteCategoryFromFirestore(id: string) {
+    try {
+      await deleteDoc(doc(firestore, 'categories', id));
+    } catch {
+      // Handled
+    }
+  }
+
   async createCategory(categoryData: Omit<Category, 'id'>): Promise<Category> {
     const id = 'cat-' + Date.now().toString(36);
     const newCategory: Category = {
@@ -376,6 +390,7 @@ class DatabaseStore {
       subcategories: categoryData.subcategories || []
     };
     this.categories.set(id, newCategory);
+    this.persistCategoryToFirestore(newCategory).catch(() => {});
     return newCategory;
   }
 
@@ -384,6 +399,7 @@ class DatabaseStore {
     if (!existing) throw new Error('Category not found');
     const updated = { ...existing, ...updates };
     this.categories.set(id, updated);
+    this.persistCategoryToFirestore(updated).catch(() => {});
     return updated;
   }
 
@@ -393,6 +409,7 @@ class DatabaseStore {
       throw new Error(`Cannot delete category with ${productCount} active products. Reassign or delete products first.`);
     }
     this.categories.delete(id);
+    this.deleteCategoryFromFirestore(id).catch(() => {});
   }
 
   // --- Products ---
@@ -460,6 +477,12 @@ class DatabaseStore {
     // In Stock only
     if (filters.inStockOnly) {
       result = result.filter(p => p.stock > 0);
+    }
+
+    // Admin Email filter (for store managers viewing their stocked items)
+    if (filters.adminEmail && filters.adminEmail !== 'all') {
+      const targetAdmin = filters.adminEmail.toLowerCase().trim();
+      result = result.filter(p => (p.adminEmail || '').toLowerCase() === targetAdmin);
     }
 
     // Stock Status Filter (for admin table input filter)
@@ -546,7 +569,27 @@ class DatabaseStore {
       result = result.slice(start, start + filters.limit);
     }
 
-    return { products: result, total };
+    // Attach order count and units sold for each product
+    const productStats = new Map<string, { orderCount: number; unitsSold: number }>();
+    for (const order of this.orders.values()) {
+      for (const item of order.items) {
+        const cur = productStats.get(item.productId) || { orderCount: 0, unitsSold: 0 };
+        cur.orderCount += 1;
+        cur.unitsSold += (item.quantity || 1);
+        productStats.set(item.productId, cur);
+      }
+    }
+
+    const enrichedResult = result.map(p => {
+      const stats = productStats.get(p.id) || { orderCount: 0, unitsSold: 0 };
+      return {
+        ...p,
+        orderCount: stats.orderCount,
+        unitsSold: stats.unitsSold
+      };
+    });
+
+    return { products: enrichedResult, total };
   }
 
   private async persistProductToFirestore(product: Product) {
@@ -591,10 +634,25 @@ class DatabaseStore {
   }
 
   async getProductById(id: string): Promise<Product | null> {
-    return this.products.get(id) || null;
+    const prod = this.products.get(id);
+    if (!prod) return null;
+    let orderCount = 0;
+    let unitsSold = 0;
+    for (const order of this.orders.values()) {
+      for (const item of order.items) {
+        if (item.productId === id) {
+          orderCount += 1;
+          unitsSold += (item.quantity || 1);
+        }
+      }
+    }
+    return { ...prod, orderCount, unitsSold };
   }
 
-  async createProduct(productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'rating' | 'reviewCount'>): Promise<Product> {
+  async createProduct(
+    productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'rating' | 'reviewCount'>,
+    adminEmail?: string
+  ): Promise<Product> {
     // Validation
     if (!productData.name || !productData.brand || !productData.price || productData.price <= 0) {
       throw new Error('Valid product name, brand, and positive price are required.');
@@ -622,6 +680,8 @@ class DatabaseStore {
       colors = rawColors.split(',').map(s => s.trim()).filter(Boolean);
     }
 
+    const assignedAdminEmail = (adminEmail || (productData as any).adminEmail || 'admin@buygen.com').toLowerCase().trim();
+
     const newProduct: Product = {
       ...productData,
       id,
@@ -630,6 +690,7 @@ class DatabaseStore {
       discount,
       colors,
       availableColours: colors,
+      adminEmail: assignedAdminEmail,
       rating: 5.0,
       reviewCount: 0,
       createdAt: new Date().toISOString(),
@@ -1222,10 +1283,13 @@ class DatabaseStore {
   }
 
   // --- Admin Metrics ---
-  async getAdminMetrics(): Promise<AdminMetrics> {
-    const products = Array.from(this.products.values());
+  async getAdminMetrics(adminEmail?: string): Promise<AdminMetrics> {
+    let products = Array.from(this.products.values());
+    if (adminEmail && adminEmail !== 'all') {
+      products = products.filter(p => !p.adminEmail || p.adminEmail.toLowerCase() === adminEmail.toLowerCase());
+    }
     const orders = Array.from(this.orders.values());
-    const users = Array.from(this.users.values());
+    const users = await this.getAllUsers();
 
     const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
     const lowStockCount = products.filter(p => p.stock <= 10).length;
@@ -1259,10 +1323,15 @@ class DatabaseStore {
 
     return {
       totalProducts: products.length,
-      totalUsers: users.length,
+      totalCategories: this.categories.size,
+      totalUsers: this.users.size,
       totalOrders: orders.length,
       totalRevenue,
       lowStockCount,
+      totalSearches: this.searchLogs.length,
+      searchLogs: this.searchLogs.slice(0, 50),
+      recentLogins: this.loginLogs.slice(0, 50),
+      users: users.slice(0, 50),
       recentOrders: orders.slice(0, 10),
       categoryBreakdown
     };

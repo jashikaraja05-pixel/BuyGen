@@ -20,8 +20,11 @@ import {
 import type { Product, Category } from '../../types/index.ts';
 import { api } from '../../services/api.ts';
 import { DataTable, ColumnDef, FilterConfig } from '../../components/admin/DataTable.tsx';
+import { useAuth } from '../../context/AuthContext.tsx';
 
 export const AdminProductsPage: React.FC = () => {
+  const { user } = useAuth();
+  const [viewScope, setViewScope] = useState<'my' | 'all'>('my');
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -49,6 +52,7 @@ export const AdminProductsPage: React.FC = () => {
     { key: 'Processor', value: '' },
     { key: 'RAM', value: '' }
   ]);
+  const [customCategoryName, setCustomCategoryName] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -64,7 +68,7 @@ export const AdminProductsPage: React.FC = () => {
     try {
       setLoading(true);
       const [prodRes, catRes] = await Promise.all([
-        api.getProducts(),
+        api.getProducts(viewScope === 'my' && user?.email ? { adminEmail: user.email } : {}),
         api.getCategories()
       ]);
       setProducts(prodRes.products || []);
@@ -81,51 +85,26 @@ export const AdminProductsPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
-
-  const handleQuickFillSamplePhone = () => {
-    setName('BUYGEN Nova 5G Smartphone');
-    setBrand('BUYGEN');
-    const phoneCat = categories.find(c => c.name.toLowerCase().includes('phone') || c.slug.includes('phone') || c.id === 'cat-1');
-    if (phoneCat) setCategoryId(phoneCat.id);
-    setSubcategory('Flagship Phones');
-    setPrice(49999);
-    setOriginalPrice(54999);
-    setDiscount(9);
-    setStock(10);
-    setColours('Cosmic Black, Titanium Gray, Aurora Blue');
-    setDescription('Flagship consumer electronics smartphone engineered for speed and clarity. Features Octa-Core AI processor, 120Hz AMOLED display, 108MP camera, and 5000mAh battery.');
-    setImage1('https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=800&auto=format&fit=crop');
-    setImage2('https://images.unsplash.com/photo-1565849904461-04a58ad377e0?q=80&w=800&auto=format&fit=crop');
-    setSpecs([
-      { key: 'Processor', value: 'Snapdragon 8 Gen 3 AI (4nm)' },
-      { key: 'RAM', value: '12GB High Speed' },
-      { key: 'Storage', value: '256GB High-Speed Storage' },
-      { key: 'Display', value: '6.7-inch 120Hz AMOLED Pro' },
-      { key: 'Camera', value: '108MP OIS Main + 12MP Ultra-wide' },
-      { key: 'Battery', value: '5000 mAh with 67W Turbo Charge' }
-    ]);
-  };
+  }, [viewScope, user?.email]);
 
   const openCreateModal = () => {
     setEditingProduct(null);
     setName('');
     setBrand('');
     setCategoryId(categories[0]?.id || '');
+    setCustomCategoryName('');
     setSubcategory('');
-    setPrice(49999);
-    setOriginalPrice(54999);
-    setDiscount(9);
-    setStock(10);
-    setColours('Phantom Black, Titanium Silver, Sky Blue');
+    setPrice(0);
+    setOriginalPrice(0);
+    setDiscount(0);
+    setStock(0);
+    setColours('');
     setDescription('');
-    setImage1('https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=800&auto=format&fit=crop');
+    setImage1('');
     setImage2('');
     setSpecs([
-      { key: 'Processor', value: 'Snapdragon 8 Gen 3 (4nm)' },
-      { key: 'RAM', value: '12GB LPDDR5X' },
-      { key: 'Storage', value: '256GB' },
-      { key: 'Display', value: '6.7-inch 120Hz AMOLED' }
+      { key: 'Processor', value: '' },
+      { key: 'RAM', value: '' }
     ]);
     setFormError(null);
     setIsModalOpen(true);
@@ -136,6 +115,7 @@ export const AdminProductsPage: React.FC = () => {
     setName(product.name);
     setBrand(product.brand);
     setCategoryId(product.categoryId);
+    setCustomCategoryName('');
     setSubcategory(product.subcategory || '');
     setPrice(product.price);
     setOriginalPrice(product.originalPrice);
@@ -155,7 +135,25 @@ export const AdminProductsPage: React.FC = () => {
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !brand.trim() || !categoryId) {
+    let targetCatId = categoryId;
+
+    if (!targetCatId && customCategoryName.trim()) {
+      try {
+        const res = await api.createCategory({
+          name: customCategoryName.trim(),
+          slug: customCategoryName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          description: 'Store category',
+          icon: 'Cpu'
+        });
+        targetCatId = res.category.id;
+        setCategoryId(res.category.id);
+      } catch (err: any) {
+        setFormError('Failed to create category: ' + (err.message || 'Error'));
+        return;
+      }
+    }
+
+    if (!name.trim() || !brand.trim() || !targetCatId) {
       setFormError('Product Name, Brand, and Category are required.');
       return;
     }
@@ -194,7 +192,7 @@ export const AdminProductsPage: React.FC = () => {
       const payload = {
         name: name.trim(),
         brand: brand.trim(),
-        categoryId,
+        categoryId: targetCatId,
         subcategory: subcategory.trim() || undefined,
         price,
         originalPrice: originalPrice > price ? originalPrice : price,
@@ -204,7 +202,8 @@ export const AdminProductsPage: React.FC = () => {
         availableColours: parsedColours,
         description: description.trim(),
         images,
-        specifications
+        specifications,
+        adminEmail: user?.email || 'admin@buygen.com'
       };
 
       if (editingProduct) {
@@ -359,12 +358,12 @@ export const AdminProductsPage: React.FC = () => {
       sortable: true,
       sortKey: (p) => p.stock,
       cell: (p) => (
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <div className="flex items-center gap-1">
             <button
               onClick={() => handleQuickStockUpdate(p.id, Math.max(0, p.stock - 1))}
               disabled={p.stock === 0}
-              className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-xs disabled:opacity-40 cursor-pointer shadow-2xs"
+              className="w-7 h-7 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-950 font-black flex items-center justify-center text-xs disabled:opacity-30 cursor-pointer shadow-2xs transition"
               title="Decrease stock by 1"
             >
               -
@@ -374,17 +373,17 @@ export const AdminProductsPage: React.FC = () => {
               min="0"
               value={p.stock}
               onChange={(e) => handleQuickStockUpdate(p.id, Math.max(0, Number(e.target.value)))}
-              className={`w-14 p-1 border rounded-lg text-center text-xs font-bold ${
+              className={`w-16 py-1 px-1.5 border-2 rounded-lg text-center text-xs font-black text-slate-950 bg-white transition shadow-2xs ${
                 p.stock === 0 
-                  ? 'border-rose-400 bg-rose-50 text-rose-800 ring-1 ring-rose-300'
+                  ? 'border-rose-500 bg-rose-50 text-rose-950 ring-1 ring-rose-400' 
                   : p.stock <= 10 
-                  ? 'border-amber-400 bg-amber-50 text-amber-800' 
-                  : 'border-slate-200 bg-white'
+                  ? 'border-amber-500 bg-amber-50 text-amber-950 ring-1 ring-amber-400' 
+                  : 'border-emerald-500 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-400'
               }`}
             />
             <button
               onClick={() => handleQuickStockUpdate(p.id, p.stock + 1)}
-              className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-xs cursor-pointer shadow-2xs"
+              className="w-7 h-7 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-950 font-black flex items-center justify-center text-xs cursor-pointer shadow-2xs transition"
               title="Increase stock by 1"
             >
               +
@@ -392,15 +391,18 @@ export const AdminProductsPage: React.FC = () => {
           </div>
           <div>
             {p.stock === 0 ? (
-              <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-rose-100 text-rose-700 border border-rose-200 inline-block animate-pulse">
-                Out of Stock
+              <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-950 border border-rose-500 inline-flex items-center gap-1 shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
+                Out of Stock (0)
               </span>
             ) : p.stock <= 10 ? (
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 text-amber-800 border border-amber-200 inline-block">
+              <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-950 border border-amber-500 inline-flex items-center gap-1 shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
                 Low Stock ({p.stock})
               </span>
             ) : (
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200 inline-block">
+              <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-950 border border-emerald-500 inline-flex items-center gap-1 shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
                 In Stock ({p.stock})
               </span>
             )}
@@ -409,13 +411,49 @@ export const AdminProductsPage: React.FC = () => {
       )
     },
     {
+      id: 'orders',
+      header: 'Orders Placed',
+      sortable: true,
+      sortKey: (p) => p.orderCount || 0,
+      cell: (p) => {
+        const count = p.orderCount || 0;
+        const units = p.unitsSold || 0;
+        const isLowWithOrders = (p.stock <= 10 && count > 0);
+
+        return (
+          <div className="space-y-1">
+            <button
+              onClick={() => handleViewActivity(p)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-black flex items-center gap-1.5 transition cursor-pointer border ${
+                isLowWithOrders
+                  ? 'bg-amber-100 hover:bg-amber-200 text-amber-950 border-amber-500 shadow-xs'
+                  : count > 0
+                  ? 'bg-cyan-100 hover:bg-cyan-200 text-cyan-950 border-cyan-500 shadow-2xs'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+              }`}
+              title="Click to view all customer purchase records and orders for this product"
+            >
+              <ShoppingBag className="w-3.5 h-3.5 text-slate-800" />
+              <span>{count} {count === 1 ? 'Order' : 'Orders'}</span>
+              <span className="text-[10px] font-bold opacity-80 font-mono">({units} units)</span>
+            </button>
+            {isLowWithOrders && (
+              <span className="text-[10px] font-black text-amber-900 block leading-tight">
+                ⚠️ Low stock ({p.stock} left)
+              </span>
+            )}
+          </div>
+        );
+      }
+    },
+    {
       id: 'rating',
       header: 'Rating',
       sortable: true,
       sortKey: (p) => p.rating,
       hideOnTablet: true,
       cell: (p) => (
-        <span className="font-bold text-amber-600">{p.rating} ★</span>
+        <span className="font-black text-amber-700">{p.rating} ★</span>
       )
     },
     {
@@ -427,11 +465,11 @@ export const AdminProductsPage: React.FC = () => {
         <div className="flex items-center justify-end gap-1.5">
           <button
             onClick={() => handleViewActivity(p)}
-            className="p-1.5 text-cyan-700 bg-cyan-50 hover:bg-cyan-100 rounded-lg transition cursor-pointer flex items-center gap-1 border border-cyan-200"
+            className="px-2.5 py-1.5 text-cyan-950 bg-cyan-100 hover:bg-cyan-200 rounded-lg transition cursor-pointer flex items-center gap-1.5 border border-cyan-400 font-black shadow-2xs"
             title="View customer purchases and order history for this product"
           >
-            <ShoppingBag className="w-3.5 h-3.5 text-cyan-600" />
-            <span className="text-[11px] font-bold hidden sm:inline">Orders</span>
+            <ShoppingBag className="w-3.5 h-3.5 text-cyan-800" />
+            <span className="text-[11px] font-black hidden sm:inline">Orders</span>
           </button>
           <button
             onClick={() => openEditModal(p)}
@@ -502,13 +540,39 @@ export const AdminProductsPage: React.FC = () => {
         defaultSort={{ columnId: 'item', direction: 'asc' }}
         pageSize={8}
         actions={
-          <button
-            onClick={openCreateModal}
-            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-md transition cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add New Product</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="bg-slate-100 p-0.5 rounded-xl border border-slate-200 flex items-center text-xs">
+              <button
+                type="button"
+                onClick={() => setViewScope('my')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
+                  viewScope === 'my' 
+                    ? 'bg-white text-indigo-700 shadow-xs' 
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                My Stocked Items
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewScope('all')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
+                  viewScope === 'all' 
+                    ? 'bg-white text-indigo-700 shadow-xs' 
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                All Store Inventory
+              </button>
+            </div>
+            <button
+              onClick={openCreateModal}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-md transition cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add New Product</span>
+            </button>
+          </div>
         }
         renderCard={(p) => (
           <div className="space-y-3">
@@ -522,22 +586,33 @@ export const AdminProductsPage: React.FC = () => {
             </div>
             <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
               <div>
-                <span className="font-mono font-bold text-slate-900">₹{p.price.toLocaleString('en-IN')}</span>
+                <span className="font-mono font-black text-slate-950 text-sm">₹{p.price.toLocaleString('en-IN')}</span>
                 {p.discount > 0 && (
-                  <span className="ml-1.5 text-[10px] text-emerald-700 font-bold">({p.discount}% OFF)</span>
+                  <span className="ml-1.5 text-[10px] text-emerald-800 font-black">({p.discount}% OFF)</span>
                 )}
               </div>
-              <div className="flex items-center gap-1">
-                <span className="text-slate-400 text-[11px]">Stock:</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={p.stock}
-                  onChange={(e) => handleQuickStockUpdate(p.id, Number(e.target.value))}
-                  className="w-14 p-1 border rounded text-center text-xs font-bold"
-                />
+              <div className="flex items-center gap-1.5">
+                {p.stock === 0 ? (
+                  <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-rose-100 text-rose-950 border border-rose-500">
+                    Out of Stock (0)
+                  </span>
+                ) : p.stock <= 10 ? (
+                  <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-amber-100 text-amber-950 border border-amber-500">
+                    Low Stock ({p.stock})
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-100 text-emerald-950 border border-emerald-500">
+                    In Stock ({p.stock})
+                  </span>
+                )}
               </div>
             </div>
+            {(p.orderCount || 0) > 0 && (
+              <div className="text-[11px] font-bold text-slate-700 bg-slate-50 p-2 rounded-lg border border-slate-200 flex items-center justify-between">
+                <span>Customer Orders:</span>
+                <span className="font-black text-cyan-950">{p.orderCount} orders ({p.unitsSold || 0} units)</span>
+              </div>
+            )}
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
               <button
                 onClick={() => handleViewActivity(p)}
@@ -572,17 +647,6 @@ export const AdminProductsPage: React.FC = () => {
                 <h3 className="font-heading font-black text-xl text-slate-900">
                   {editingProduct ? 'Edit Product' : 'Add New Product'}
                 </h3>
-                {!editingProduct && (
-                  <button
-                    type="button"
-                    onClick={handleQuickFillSamplePhone}
-                    className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[11px] rounded-lg transition flex items-center gap-1 cursor-pointer"
-                    title="Pre-fill sample 5G smartphone with 10 stock, specifications and colours"
-                  >
-                    <Sparkles className="w-3 h-3 text-amber-600" />
-                    <span>⚡ Fill Sample Phone (Stock: 10)</span>
-                  </button>
-                )}
               </div>
               <button onClick={() => setIsModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
@@ -605,7 +669,7 @@ export const AdminProductsPage: React.FC = () => {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Sony WH-1000XM5 Wireless Noise Cancelling Headphones"
+                    placeholder="e.g. Product 1 (or any custom product name)"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden"
@@ -619,7 +683,7 @@ export const AdminProductsPage: React.FC = () => {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Sony, Apple, Samsung"
+                    placeholder="e.g. Brand Name"
                     value={brand}
                     onChange={(e) => setBrand(e.target.value)}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden"
@@ -630,15 +694,27 @@ export const AdminProductsPage: React.FC = () => {
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                     Category *
                   </label>
-                  <select
-                    value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden cursor-pointer"
-                  >
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
+                  {categories.length > 0 ? (
+                    <select
+                      value={categoryId}
+                      onChange={(e) => setCategoryId(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden cursor-pointer"
+                    >
+                      <option value="">-- Select Category --</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Smartphones, Audio, Laptops"
+                      value={customCategoryName}
+                      onChange={(e) => setCustomCategoryName(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden"
+                    />
+                  )}
                 </div>
 
                 <div>

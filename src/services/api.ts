@@ -9,7 +9,9 @@ import type {
   AdminMetrics, 
   AIAdvisorResponse, 
   OrderStatus, 
-  PaymentMethod 
+  PaymentMethod,
+  SearchLog,
+  UserLoginLog 
 } from '../types/index.ts';
 
 const TOKEN_KEY = 'buygen_auth_token';
@@ -111,6 +113,7 @@ export const api = {
     if (filters.inStockOnly) params.append('inStockOnly', 'true');
     if (filters.search) params.append('search', filters.search);
     if (filters.sortBy) params.append('sortBy', filters.sortBy);
+    if (filters.adminEmail) params.append('adminEmail', filters.adminEmail);
 
     const query = params.toString() ? `?${params.toString()}` : '';
     return request<{ products: Product[]; total: number }>(`/products${query}`);
@@ -265,9 +268,20 @@ export const api = {
     }),
 
   // Admin
-  getAdminMetrics: () => request<AdminMetrics>('/admin/metrics'),
+  getAdminMetrics: (adminEmail?: string) => 
+    request<AdminMetrics>(adminEmail ? `/admin/metrics?adminEmail=${encodeURIComponent(adminEmail)}` : '/admin/metrics'),
 
   getAdminUsers: () => request<{ users: (User & { orderCount: number })[] }>('/admin/users'),
+
+  getAdminSearches: () => request<{ searches: SearchLog[] }>('/admin/searches'),
+
+  getAdminLogins: () => request<{ logins: UserLoginLog[] }>('/admin/logins'),
+
+  logSearch: (query: string, resultsCount?: number) =>
+    request<{ success: boolean }>('/search-log', {
+      method: 'POST',
+      body: JSON.stringify({ query, resultsCount })
+    }),
 
   // AI Features
   askTechAdvisor: (prompt: string) =>

@@ -6,6 +6,7 @@ export interface User {
   email: string;
   role: UserRole;
   createdAt: string;
+  lastLogin?: string;
 }
 
 export interface SpecificationItem {
@@ -27,6 +28,8 @@ export interface Product {
   stock: number;
   rating: number;
   reviewCount: number;
+  orderCount?: number;
+  unitsSold?: number;
   images: string[];
   colors?: string[];
   availableColours?: string[];
@@ -35,6 +38,7 @@ export interface Product {
   trending?: boolean;
   newArrival?: boolean;
   badge?: string;
+  adminEmail?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -124,12 +128,31 @@ export interface ProductFilters {
   minRating?: number;
   inStockOnly?: boolean;
   stockStatus?: 'all' | 'instock' | 'lowstock' | 'outofstock';
+  adminEmail?: string;
   search?: string;
   sortBy?: 'price-asc' | 'price-desc' | 'rating' | 'newest' | 'popularity';
   sortField?: string;
   sortOrder?: 'asc' | 'desc';
   page?: number;
   limit?: number;
+}
+
+export interface SearchLog {
+  id: string;
+  query: string;
+  userName: string;
+  userEmail: string;
+  resultsCount: number;
+  timestamp: string;
+}
+
+export interface UserLoginLog {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  role: 'customer' | 'admin';
+  loginTime: string;
 }
 
 export interface OrderFilters {
@@ -144,10 +167,15 @@ export interface OrderFilters {
 
 export interface AdminMetrics {
   totalProducts: number;
+  totalCategories: number;
   totalUsers: number;
   totalOrders: number;
   totalRevenue: number;
   lowStockCount: number;
+  totalSearches: number;
+  searchLogs: SearchLog[];
+  recentLogins: UserLoginLog[];
+  users: (User & { orderCount: number; lastLogin?: string })[];
   recentOrders: Order[];
   categoryBreakdown: { category: string; count: number; revenue: number }[];
 }

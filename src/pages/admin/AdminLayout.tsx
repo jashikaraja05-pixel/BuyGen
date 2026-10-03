@@ -81,8 +81,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
               <span className="text-[10px] font-bold text-amber-400 block tracking-wider uppercase">
                 Consumer Electronics Store Manager
               </span>
-              <span className="text-[9px] font-semibold text-cyan-400 block">
-                கன்ஸ்யூமர் எலக்ட்ரானிக்ஸ்
+              <span className="text-[9px] font-semibold text-slate-400 block">
+                Official Admin Console
               </span>
             </div>
           </div>
@@ -239,8 +239,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                 <span className="block text-[10px] font-bold tracking-wider uppercase text-amber-400">
                   Consumer Electronics Store
                 </span>
-                <span className="block text-[9px] font-semibold text-cyan-400">
-                  கன்ஸ்யூமர் எலக்ட்ரானிக்ஸ்
+                <span className="block text-[9px] font-semibold text-slate-400">
+                  Official Admin Console
                 </span>
               </div>
             </div>
@@ -306,7 +306,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                 {currentAdminTab} Management
               </h2>
               <span className="text-[11px] text-slate-500 font-medium">
-                BUYGEN Consumer Electronics Store Manager (கன்ஸ்யூமர் எலக்ட்ரானிக்ஸ்) • Real-time Persistent DB
+                BUYGEN Consumer Electronics Store Manager • Real-time Persistent Database
               </span>
             </div>
           </div>

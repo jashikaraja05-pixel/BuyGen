@@ -137,57 +137,73 @@ export const AdminCategoriesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Categories Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {categories.map((cat) => (
-          <div key={cat.id} className="p-6 bg-white rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-4">
-            <div>
-              <div className="flex items-start justify-between">
-                <span className="px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold uppercase tracking-wider">
-                  /{cat.slug}
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => openEditModal(cat)}
-                    className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-slate-50 cursor-pointer"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setCategoryToDelete(cat)}
-                    className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-50 cursor-pointer"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+      {/* Categories Grid or Zero State */}
+      {categories.length === 0 && !loading ? (
+        <div className="p-12 bg-white rounded-3xl border border-slate-200 text-center space-y-3 shadow-xs">
+          <FolderTree className="w-12 h-12 text-slate-300 mx-auto" />
+          <h3 className="font-heading font-black text-lg text-slate-800">0 Categories in Database</h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            All mock categories have been removed. Click "Add Category" above to organize products in your store.
+          </p>
+          <button
+            onClick={openCreateModal}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer"
+          >
+            Create First Category
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {categories.map((cat) => (
+            <div key={cat.id} className="p-6 bg-white rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-4">
+              <div>
+                <div className="flex items-start justify-between">
+                  <span className="px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold uppercase tracking-wider">
+                    /{cat.slug}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => openEditModal(cat)}
+                      className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-slate-50 cursor-pointer"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setCategoryToDelete(cat)}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-50 cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
+
+                <h3 className="font-heading font-bold text-lg text-slate-900 mt-2">
+                  {cat.name}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                  {cat.description}
+                </p>
+
+                {/* Subcategories tags */}
+                {cat.subcategories && cat.subcategories.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {cat.subcategories.map((sub, i) => (
+                      <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold rounded-md">
+                        {sub}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <h3 className="font-heading font-bold text-lg text-slate-900 mt-2">
-                {cat.name}
-              </h3>
-              <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                {cat.description}
-              </p>
-
-              {/* Subcategories tags */}
-              {cat.subcategories && cat.subcategories.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-3">
-                  {cat.subcategories.map((sub, i) => (
-                    <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold rounded-md">
-                      {sub}
-                    </span>
-                  ))}
-                </div>
-              )}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-600">
+                <span>Active Products:</span>
+                <span className="font-bold text-slate-900">{cat.productCount || 0}</span>
+              </div>
             </div>
-
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-600">
-              <span>Active Products:</span>
-              <span className="font-bold text-slate-900">{cat.productCount || 0}</span>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Modal */}
       {isModalOpen && (
