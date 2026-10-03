@@ -301,6 +301,7 @@ export const api = {
   getAdminUsers: () => request<{ users: (User & { orderCount: number })[] }>('/admin/users'),
 
   getAdminSearches: () => request<{ searches: SearchLog[] }>('/admin/searches'),
+  getSearchLogs: () => request<{ searches: SearchLog[] }>('/admin/searches'),
 
   getAdminLogins: () => request<{ logins: UserLoginLog[] }>('/admin/logins'),
 

@@ -34,12 +34,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setAdminTab }) =
       else setLoading(true);
 
       const [metricsRes, loginsRes, searchesRes] = await Promise.all([
-        api.getAdminMetrics().catch(() => ({ metrics: null })),
+        api.getAdminMetrics().catch(() => null),
         api.getAdminLogins().catch(() => ({ logins: [] })),
         api.getSearchLogs().catch(() => ({ searches: [] }))
       ]);
 
-      if (metricsRes.metrics) setMetrics(metricsRes.metrics);
+      if (metricsRes) setMetrics(metricsRes);
       setLogins(loginsRes.logins || []);
       setSearches(searchesRes.searches || []);
     } catch (err) {
