@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Cpu, ChevronRight, SlidersHorizontal, Sparkles, Smartphone, Laptop, Headphones, Monitor, Keyboard, Volume2, Watch, Camera, Home, Zap } from 'lucide-react';
-import { Product, Category } from '../types/index.ts';
+import type { Product, Category } from '../types/index.ts';
 import { api } from '../services/api.ts';
 import { ProductCard } from '../components/ProductCard.tsx';
 

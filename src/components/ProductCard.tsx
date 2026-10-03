@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Heart, ShoppingCart, Star, Check, SlidersHorizontal, AlertCircle, Zap } from 'lucide-react';
-import { Product } from '../types/index.ts';
+import type { Product } from '../types/index.ts';
 import { useCart } from '../context/CartContext.tsx';
 import { useWishlist } from '../context/WishlistContext.tsx';
 import { useCompare } from '../context/CompareContext.tsx';

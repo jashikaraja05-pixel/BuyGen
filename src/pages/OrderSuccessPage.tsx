@@ -10,7 +10,7 @@ import {
   ArrowRight,
   ShieldCheck
 } from 'lucide-react';
-import { Order } from '../types/index.ts';
+import type { Order } from '../types/index.ts';
 import { api } from '../services/api.ts';
 
 interface OrderSuccessPageProps {

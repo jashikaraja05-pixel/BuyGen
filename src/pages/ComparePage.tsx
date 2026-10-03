@@ -10,7 +10,7 @@ import {
   AlertCircle,
   X
 } from 'lucide-react';
-import { Product } from '../types/index.ts';
+import type { Product } from '../types/index.ts';
 import { useCompare } from '../context/CompareContext.tsx';
 import { useCart } from '../context/CartContext.tsx';
 import { api } from '../services/api.ts';

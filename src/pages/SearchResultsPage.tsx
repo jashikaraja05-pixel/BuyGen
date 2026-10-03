@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Sparkles, Filter, AlertCircle, ArrowRight } from 'lucide-react';
-import { Product } from '../types/index.ts';
+import type { Product } from '../types/index.ts';
 import { api } from '../services/api.ts';
 import { ProductCard } from '../components/ProductCard.tsx';
 

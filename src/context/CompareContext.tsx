@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { Product } from '../types/index.ts';
+import type { Product } from '../types/index.ts';
 
 interface CompareContextType {
   compareProducts: Product[];

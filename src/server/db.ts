@@ -9,7 +9,7 @@ try {
 } catch {
   // Ignore in case setLogLevel is unsupported in environment
 }
-import { 
+import type { 
   User, 
   Product, 
   Category, 

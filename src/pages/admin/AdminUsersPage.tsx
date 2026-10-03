@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Users, Mail, ShieldCheck, UserCheck, Calendar, ShoppingBag } from 'lucide-react';
-import { User } from '../../types/index.ts';
+import type { User } from '../../types/index.ts';
 import { api } from '../../services/api.ts';
 
 export const AdminUsersPage: React.FC = () => {

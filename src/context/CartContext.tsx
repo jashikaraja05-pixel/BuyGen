@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { CartItem } from '../types/index.ts';
+import type { CartItem } from '../types/index.ts';
 import { api } from '../services/api.ts';
 import { useAuth } from './AuthContext.tsx';
 

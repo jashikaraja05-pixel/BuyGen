@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User } from '../types/index.ts';
+import type { User } from '../types/index.ts';
 import { api, getStoredToken, getStoredUser, setStoredAuth, clearStoredAuth } from '../services/api.ts';
 
 interface AuthContextType {

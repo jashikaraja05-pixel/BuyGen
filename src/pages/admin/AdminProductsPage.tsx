@@ -17,7 +17,7 @@ import {
   User,
   IndianRupee
 } from 'lucide-react';
-import { Product, Category } from '../../types/index.ts';
+import type { Product, Category } from '../../types/index.ts';
 import { api } from '../../services/api.ts';
 import { DataTable, ColumnDef, FilterConfig } from '../../components/admin/DataTable.tsx';
 

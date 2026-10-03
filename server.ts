@@ -1,8 +1,8 @@
 import express from 'express';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import { createServer as createViteServer } from 'vite';
 import { apiRouter } from './src/server/api.ts';
 
 dotenv.config();
@@ -40,22 +40,23 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const app = express();
   const PORT = process.env.PORT || 3000;
-  const isProd = process.env.NODE_ENV === 'production';
+  const distPath = path.join(__dirname, 'dist');
+  const distExists = fs.existsSync(path.join(distPath, 'index.html'));
+
+  // Production detection:
+  // 1. Explicit NODE_ENV === 'production'
+  // 2. Cloud Run environment (K_SERVICE or K_REVISION set by Cloud Run)
+  // 3. Or built static dist exists and not in explicit development mode
+  const isCloudRun = Boolean(process.env.K_SERVICE || process.env.K_REVISION);
+  const isProd = process.env.NODE_ENV === 'production' || isCloudRun || (process.env.NODE_ENV !== 'development' && distExists);
 
   app.use(express.json());
 
   // Mount the BUYGEN API router
   app.use('/api', apiRouter);
 
-  if (!isProd) {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    // Serve static assets from production build if available
-    const distPath = path.join(__dirname, 'dist');
+  if (isProd) {
+    // Serve pre-built static production bundle without Vite dev server or HMR websockets
     app.use(express.static(distPath));
 
     app.get('*', (req, res, next) => {
@@ -68,12 +69,22 @@ async function startServer() {
         }
       });
     });
+  } else {
+    // In local development only, dynamically mount Vite middleware
+    const { createServer: createViteServer } = await import('vite');
+    const vite = await createViteServer({
+      server: {
+        middlewareMode: true,
+        hmr: process.env.DISABLE_HMR !== 'true' ? undefined : false,
+      },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
   }
 
   app.listen(Number(PORT), '0.0.0.0', () => {
-    console.log(`BUYGEN Server running on http://0.0.0.0:${PORT}`);
+    console.log(`BUYGEN Server running in ${isProd ? 'PRODUCTION' : 'DEVELOPMENT'} mode on http://0.0.0.0:${PORT}`);
   });
 }
 
 startServer();
-

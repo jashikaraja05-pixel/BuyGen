@@ -14,7 +14,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
-import { Order, OrderStatus } from '../types/index.ts';
+import type { Order, OrderStatus } from '../types/index.ts';
 import { api } from '../services/api.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 

@@ -10,7 +10,7 @@ import {
   TrendingUp,
   FolderTree
 } from 'lucide-react';
-import { AdminMetrics, OrderStatus } from '../../types/index.ts';
+import type { AdminMetrics, OrderStatus } from '../../types/index.ts';
 import { api } from '../../services/api.ts';
 
 interface AdminDashboardProps {

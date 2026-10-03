@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { FolderTree, Plus, Edit2, Trash2, AlertCircle, X, Check } from 'lucide-react';
-import { Category } from '../../types/index.ts';
+import type { Category } from '../../types/index.ts';
 import { api } from '../../services/api.ts';
 
 export const AdminCategoriesPage: React.FC = () => {

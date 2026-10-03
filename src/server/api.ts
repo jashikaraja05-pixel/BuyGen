@@ -1,7 +1,8 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { GoogleGenAI } from '@google/genai';
 import { dbStore } from './db.ts';
-import { OrderStatus, PaymentMethod, User } from '../types/index.ts';
+import type { OrderStatus, PaymentMethod, User } from '../types/index.ts';
 import { normalizeSearchQuery, getExpandedSearchTokens } from '../lib/spellingNormalizer.ts';
 
 export const apiRouter = Router();

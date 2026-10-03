@@ -21,7 +21,7 @@ import {
   Lock,
   ThumbsUp
 } from 'lucide-react';
-import { Product, Review } from '../types/index.ts';
+import type { Product, Review } from '../types/index.ts';
 import { api } from '../services/api.ts';
 import { useCart } from '../context/CartContext.tsx';
 import { useWishlist } from '../context/WishlistContext.tsx';

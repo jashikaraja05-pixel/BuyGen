@@ -13,7 +13,7 @@ import {
 import { useCart } from '../context/CartContext.tsx';
 import { useAuth } from '../context/AuthContext.tsx';
 import { api } from '../services/api.ts';
-import { PaymentMethod } from '../types/index.ts';
+import type { PaymentMethod } from '../types/index.ts';
 
 interface CheckoutPageProps {
   navigate: (path: string) => void;

@@ -13,7 +13,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { api } from '../services/api.ts';
-import { AIAdvisorResponse } from '../types/index.ts';
+import type { AIAdvisorResponse } from '../types/index.ts';
 import { useCart } from '../context/CartContext.tsx';
 
 interface AdvisorPageProps {

@@ -11,7 +11,7 @@ import {
   Sparkles,
   AlertCircle
 } from 'lucide-react';
-import { Product, Category, ProductFilters } from '../types/index.ts';
+import type { Product, Category, ProductFilters } from '../types/index.ts';
 import { api } from '../services/api.ts';
 import { ProductCard } from '../components/ProductCard.tsx';
 
