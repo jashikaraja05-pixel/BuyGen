@@ -29,30 +29,19 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(getStoredUser());
-  const [token, setToken] = useState<string | null>(getStoredToken());
-  const [loading, setLoading] = useState<boolean>(true);
+  // Fresh app start: User is NEVER auto-logged in on startup.
+  // Explicit login is strictly required ("edutha odane login aga koodathu login pannunathan")
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
   const [authFeedback, setAuthFeedback] = useState<AuthFeedback | null>(null);
 
+  // Erase any existing stored sessions immediately so everyone starts completely logged out
   useEffect(() => {
-    const initAuth = async () => {
-      const storedToken = getStoredToken();
-      if (storedToken) {
-        try {
-          const res = await api.getMe();
-          setUser(res.user);
-          setStoredAuth(storedToken, res.user);
-        } catch {
-          // If token expired or invalid, reset
-          clearStoredAuth();
-          setUser(null);
-          setToken(null);
-        }
-      }
-      setLoading(false);
-    };
-
-    initAuth();
+    clearStoredAuth();
+    setUser(null);
+    setToken(null);
+    setLoading(false);
   }, []);
 
   const clearAuthFeedback = () => setAuthFeedback(null);

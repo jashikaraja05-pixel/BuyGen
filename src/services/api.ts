@@ -19,9 +19,30 @@ import type {
 const TOKEN_KEY = 'buygen_auth_token';
 const USER_KEY = 'buygen_auth_user';
 
+// Immediately purge any previous or legacy login sessions on load
+// Ensure fresh app state with zero pre-logged-in users ("edutha odane login aga koodathu")
+if (typeof window !== 'undefined') {
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem('buygen_token');
+    localStorage.removeItem('buygen_user');
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('buygen_session_token');
+    localStorage.removeItem('buygen_session_user');
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem('buygen_session_token');
+    sessionStorage.removeItem('buygen_session_user');
+  } catch {
+    // Ignore storage errors in restricted contexts
+  }
+}
+
 export const getStoredToken = (): string | null => {
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    return sessionStorage.getItem(TOKEN_KEY);
   } catch {
     return null;
   }
@@ -29,8 +50,8 @@ export const getStoredToken = (): string | null => {
 
 export const setStoredAuth = (token: string, user: User) => {
   try {
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    sessionStorage.setItem(TOKEN_KEY, token);
+    sessionStorage.setItem(USER_KEY, JSON.stringify(user));
   } catch (e) {
     console.error(e);
   }
@@ -38,8 +59,12 @@ export const setStoredAuth = (token: string, user: User) => {
 
 export const clearStoredAuth = () => {
   try {
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem('buygen_token');
+    localStorage.removeItem('buygen_user');
   } catch (e) {
     console.error(e);
   }
@@ -47,7 +72,7 @@ export const clearStoredAuth = () => {
 
 export const getStoredUser = (): User | null => {
   try {
-    const raw = localStorage.getItem(USER_KEY);
+    const raw = sessionStorage.getItem(USER_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
