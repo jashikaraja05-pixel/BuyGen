@@ -5,9 +5,7 @@ import {
   AlertCircle, 
   ArrowRight, 
   ShieldCheck, 
-  User, 
   Store, 
-  Zap, 
   Eye, 
   EyeOff, 
   HelpCircle,
@@ -23,8 +21,10 @@ interface LoginPageProps {
 export const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
   const { login, loginWithGoogle } = useAuth();
   const [activeTab, setActiveTab] = useState<'customer' | 'admin'>('customer');
-  const [email, setEmail] = useState('phantomeye722@gmail.com');
-  const [password, setPassword] = useState('Customer@123');
+  
+  // Empty credentials by default - user fills them in
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -39,18 +39,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
   const handleTabChange = (tab: 'customer' | 'admin') => {
     setActiveTab(tab);
     setError(null);
-    if (tab === 'customer') {
-      setEmail('phantomeye722@gmail.com');
-      setPassword('Customer@123');
-    } else {
-      setEmail('phantomeye722@gmail.com');
-      setPassword('Admin@123');
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
+    if (!email.trim() || !password) {
       setError('Please enter both email and password.');
       return;
     }
@@ -75,8 +68,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
     try {
       setGoogleLoading(true);
       setError(null);
-      const chosenEmail = 'phantomeye722@gmail.com';
-      const chosenName = activeTab === 'admin' ? 'Phantom Eye (Admin)' : 'Phantom Eye (Customer)';
+      const chosenEmail = email.trim() || (activeTab === 'admin' ? 'admin@buygen.com' : 'jashikahack@gmail.com');
+      const chosenName = activeTab === 'admin' ? 'Store Administrator' : 'Google Customer';
       await loginWithGoogle(chosenEmail, chosenName);
       if (activeTab === 'admin') {
         navigate('/admin');
@@ -90,24 +83,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
     }
   };
 
-  const handleInstantLogin = async (role: 'customer' | 'admin') => {
-    try {
-      setLoading(true);
-      setError(null);
-      if (role === 'customer') {
-        await login('customer@buygen.com', 'Customer@123');
-        navigate('/');
-      } else {
-        await login('admin@buygen.com', 'Admin@123');
-        navigate('/admin');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Instant login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleForgotPassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotEmail) {
@@ -117,23 +92,33 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
     setForgotSent(true);
   };
 
+  const isAdminTab = activeTab === 'admin';
+
   return (
     <div className="min-h-[85vh] flex items-center justify-center px-4 py-12 relative overflow-hidden text-white">
       
       {/* Background Neon Glowing Orbs */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-cyan-500/20 rounded-full blur-[140px] pointer-events-none"></div>
-      <div className="absolute bottom-0 -right-32 w-96 h-96 bg-indigo-600/20 rounded-full blur-[140px] pointer-events-none"></div>
+      <div className={`absolute -top-32 -left-32 w-96 h-96 rounded-full blur-[140px] pointer-events-none transition-colors duration-700 ${
+        isAdminTab ? 'bg-amber-500/20' : 'bg-cyan-500/20'
+      }`}></div>
+      <div className={`absolute bottom-0 -right-32 w-96 h-96 rounded-full blur-[140px] pointer-events-none transition-colors duration-700 ${
+        isAdminTab ? 'bg-amber-600/15' : 'bg-indigo-600/20'
+      }`}></div>
 
       <div className="max-w-md w-full mx-auto space-y-6 relative z-10">
         
         {/* Brand & Heading */}
         <div className="text-center space-y-3">
           <div className="relative inline-block group">
-            <div className="absolute -inset-2 rounded-2xl bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-600 blur-lg opacity-70 group-hover:opacity-100 transition animate-pulse"></div>
+            <div className={`absolute -inset-2 rounded-2xl blur-lg opacity-70 group-hover:opacity-100 transition animate-pulse ${
+              isAdminTab ? 'bg-gradient-to-r from-amber-400 to-amber-600' : 'bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-600'
+            }`}></div>
             <img 
               src="/buygen-logo.jpg" 
               alt="BUYGEN" 
-              className="relative w-20 h-20 mx-auto rounded-2xl object-cover shadow-2xl ring-2 ring-cyan-400/80 p-0.5 bg-slate-950" 
+              className={`relative w-20 h-20 mx-auto rounded-2xl object-cover shadow-2xl p-0.5 bg-slate-950 ring-2 ${
+                isAdminTab ? 'ring-amber-400/80' : 'ring-cyan-400/80'
+              }`} 
             />
           </div>
 
@@ -151,7 +136,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
             type="button"
             onClick={() => handleTabChange('customer')}
             className={`py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
-              activeTab === 'customer'
+              !isAdminTab
                 ? 'bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-600 text-slate-950 shadow-[0_0_15px_rgba(6,182,212,0.4)]'
                 : 'text-slate-400 hover:text-white'
             }`}
@@ -164,9 +149,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
             type="button"
             onClick={() => handleTabChange('admin')}
             className={`py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
-              activeTab === 'admin'
+              isAdminTab
                 ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 shadow-[0_0_15px_rgba(251,191,36,0.4)]'
-                : 'text-slate-400 hover:text-white'
+                : 'text-amber-400 hover:text-amber-300'
             }`}
           >
             <ShieldCheck className="w-4 h-4" />
@@ -175,7 +160,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
         </div>
 
         {/* Card Container */}
-        <div className="bg-[#0b0e22]/90 backdrop-blur-2xl border border-cyan-500/25 rounded-3xl p-6 sm:p-8 space-y-5 shadow-[0_0_30px_rgba(0,0,0,0.8)]">
+        <div className={`bg-[#0b0e22]/90 backdrop-blur-2xl border rounded-3xl p-6 sm:p-8 space-y-5 shadow-2xl transition-colors duration-500 ${
+          isAdminTab ? 'border-amber-500/30' : 'border-cyan-500/25'
+        }`}>
           
           {/* Error Message */}
           {error && (
@@ -185,65 +172,28 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
             </div>
           )}
 
-          {/* 1. TOP: Email ID field */}
-          <div>
-            <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-              <span>{activeTab === 'admin' ? 'Administrator Email ID' : 'Customer Email Address'}</span>
-              <span className="text-[10px] text-cyan-400 font-semibold lowercase">
-                {email || 'phantomeye722@gmail.com'}
-              </span>
-            </label>
-            <div className="relative">
-              <input
-                type="email"
-                required
-                placeholder="phantomeye722@gmail.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-cyan-400 rounded-xl text-xs sm:text-sm text-white focus:outline-hidden transition shadow-inner font-medium"
-              />
-              <Mail className="w-4 h-4 text-cyan-400/80 absolute left-3.5 top-3" />
-            </div>
-          </div>
-
-          {/* 2. DIRECTLY UNDER EMAIL: Google Sign In Button */}
-          <button
-            type="button"
-            onClick={handleGoogleLogin}
-            disabled={googleLoading || loading}
-            className="w-full py-3 px-4 bg-white hover:bg-slate-100 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow-lg transition flex items-center justify-center gap-3 cursor-pointer active:scale-98 ring-1 ring-slate-200"
-          >
-            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-              <path
-                fill="#4285F4"
-                d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.14z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.36 24 12 24z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.04 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
-              />
-              <path
-                fill="#EA4335"
-                d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-              />
-            </svg>
-            <span>{googleLoading ? 'Connecting Google...' : `Sign in with Google (${email || 'phantomeye722@gmail.com'})`}</span>
-          </button>
-
-          {/* 3. Divider: Or Sign In with Password */}
-          <div className="relative flex items-center justify-center my-2">
-            <div className="w-full border-t border-slate-800"></div>
-            <span className="absolute bg-[#0b0e22] px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-              Or Sign In With Password
-            </span>
-          </div>
-
-          {/* 4. Password Form */}
+          {/* 1. Main Credentials Form (Email ID & Password) */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            
+            {/* Email ID Field (User enters their email) */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                {isAdminTab ? 'Administrator Email ID' : 'Customer Email Address'}
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  required
+                  placeholder={isAdminTab ? 'admin@buygen.com' : 'name@example.com'}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-cyan-400 rounded-xl text-xs sm:text-sm text-white focus:outline-hidden transition shadow-inner font-medium"
+                />
+                <Mail className={`w-4 h-4 absolute left-3.5 top-3 ${isAdminTab ? 'text-amber-400' : 'text-cyan-400'}`} />
+              </div>
+            </div>
+
+            {/* Password Field (User enters their password) */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
@@ -261,12 +211,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
-                  placeholder="••••••••"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 focus:border-cyan-400 rounded-xl text-xs sm:text-sm text-white focus:outline-hidden transition shadow-inner"
                 />
-                <Lock className="w-4 h-4 text-cyan-400/80 absolute left-3.5 top-3" />
+                <Lock className={`w-4 h-4 absolute left-3.5 top-3 ${isAdminTab ? 'text-amber-400' : 'text-cyan-400'}`} />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -291,56 +241,69 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
               </label>
             </div>
 
+            {/* Sign In Button */}
             <button
               type="submit"
               disabled={loading}
               className={`w-full py-3.5 text-slate-950 font-black text-xs sm:text-sm rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 ${
-                activeTab === 'customer'
-                  ? 'bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 shadow-[0_0_20px_rgba(6,182,212,0.35)]'
-                  : 'bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 shadow-[0_0_20px_rgba(251,191,36,0.35)]'
+                isAdminTab
+                  ? 'bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 shadow-[0_0_20px_rgba(251,191,36,0.35)]'
+                  : 'bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 shadow-[0_0_20px_rgba(6,182,212,0.35)]'
               }`}
             >
-              <span>{loading ? 'Authenticating...' : `Sign In as ${activeTab === 'customer' ? 'Customer' : 'Admin'}`}</span>
+              <span>{loading ? 'Authenticating...' : `Sign In as ${isAdminTab ? 'Administrator' : 'Customer'}`}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
 
-          {/* 1-Click Instant Evaluation Buttons */}
-          <div className="pt-3 border-t border-slate-800/80 space-y-2">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block text-center">
-              ⚡ Instant 1-Click Evaluation Accounts:
+          {/* 2. OR DIVIDER (After Email & Password) */}
+          <div className="relative flex items-center justify-center my-3">
+            <div className="w-full border-t border-slate-800"></div>
+            <span className="absolute bg-[#0b0e22] px-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+              OR
             </span>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleInstantLogin('customer')}
-                disabled={loading}
-                className="py-2.5 px-3 bg-slate-950 hover:bg-slate-900 border border-cyan-500/40 text-cyan-300 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
-              >
-                <User className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Customer Demo</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleInstantLogin('admin')}
-                disabled={loading}
-                className="py-2.5 px-3 bg-slate-950 hover:bg-slate-900 border border-amber-500/40 text-amber-300 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-                <span>Admin Demo</span>
-              </button>
-            </div>
           </div>
 
-          <div className="text-center pt-2">
-            <span className="text-xs text-slate-400">
-              Don't have an account?{' '}
+          {/* 3. SIGN IN WITH GOOGLE */}
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            disabled={googleLoading || loading}
+            className="w-full py-3 px-4 bg-white hover:bg-slate-100 text-slate-950 font-bold text-xs sm:text-sm rounded-xl shadow-lg transition flex items-center justify-center gap-3 cursor-pointer active:scale-98 ring-1 ring-slate-200"
+          >
+            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.14z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.36 24 12 24z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.04 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+              />
+            </svg>
+            <span>{googleLoading ? 'Connecting to Google...' : 'Sign in with Google'}</span>
+          </button>
+
+          {/* 4. CREATE ACCOUNT LINK (Below Google Sign In) */}
+          <div className="text-center pt-2 border-t border-slate-800/80">
+            <span className="text-xs text-slate-300">
+              {isAdminTab ? "Need an administrator account? " : "Don't have an account? "}
               <button
                 type="button"
                 onClick={() => navigate('/register')}
-                className="text-cyan-400 hover:text-cyan-300 font-bold underline cursor-pointer"
+                className={`font-black underline cursor-pointer hover:opacity-90 ${
+                  isAdminTab ? 'text-amber-400 hover:text-amber-300' : 'text-cyan-400 hover:text-cyan-300'
+                }`}
               >
-                Create one now
+                {isAdminTab ? 'Create Admin Account' : 'Create Customer Account'}
               </button>
             </span>
           </div>
