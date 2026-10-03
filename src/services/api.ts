@@ -52,6 +52,27 @@ export const getStoredUser = (): User | null => {
   }
 };
 
+export class AuthApiError extends Error {
+  code?: 'USER_NOT_FOUND' | 'EMAIL_ALREADY_EXISTS' | 'INVALID_PASSWORD' | 'VALIDATION_ERROR' | string;
+  email?: string;
+  suggestedAction?: 'switch_to_register' | 'switch_to_login' | 'reset_password';
+
+  constructor(message: string, code?: string, email?: string) {
+    super(message);
+    this.name = 'AuthApiError';
+    this.code = code;
+    this.email = email;
+
+    if (code === 'USER_NOT_FOUND') {
+      this.suggestedAction = 'switch_to_register';
+    } else if (code === 'EMAIL_ALREADY_EXISTS') {
+      this.suggestedAction = 'switch_to_login';
+    } else if (code === 'INVALID_PASSWORD') {
+      this.suggestedAction = 'reset_password';
+    }
+  }
+}
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getStoredToken();
   const headers: Record<string, string> = {
@@ -71,7 +92,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error || 'Network request failed. Please try again.');
+    throw new AuthApiError(data.error || 'Network request failed. Please try again.', data.code, data.email);
   }
 
   return data as T;
@@ -95,6 +116,12 @@ export const api = {
     request<{ user: User; token: string; message: string }>('/auth/google', {
       method: 'POST',
       body: JSON.stringify({ email, name })
+    }),
+
+  resetPassword: (email: string, newPassword: string, confirmPassword?: string) =>
+    request<{ user: User; token: string; message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, newPassword, confirmPassword })
     }),
 
   getMe: () => request<{ user: User }>('/auth/me'),

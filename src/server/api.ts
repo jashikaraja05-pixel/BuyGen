@@ -81,7 +81,11 @@ apiRouter.post('/auth/register', async (req, res) => {
       message: `${assignedRole === 'admin' ? 'Admin' : 'Customer'} account created successfully!` 
     });
   } catch (err: any) {
-    res.status(400).json({ error: err.message || 'Registration failed.' });
+    res.status(400).json({ 
+      error: err.message || 'Registration failed.',
+      code: err.code || 'REGISTRATION_FAILED',
+      email: err.email || (req.body?.email ? String(req.body.email).toLowerCase().trim() : undefined)
+    });
   }
 });
 
@@ -89,14 +93,22 @@ apiRouter.post('/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
-      return res.status(400).json({ error: 'Please enter both email and password.' });
+      return res.status(400).json({ 
+        error: 'Please enter both email and password.',
+        code: 'VALIDATION_ERROR'
+      });
     }
 
     const user = await dbStore.loginUser(email, password);
     const token = `${user.id}:${Buffer.from(email).toString('base64')}`;
     res.json({ user, token, message: 'Login successful!' });
   } catch (err: any) {
-    res.status(401).json({ error: err.message || 'Invalid credentials.' });
+    const statusCode = err.code === 'USER_NOT_FOUND' ? 404 : 401;
+    res.status(statusCode).json({ 
+      error: err.message || 'Invalid credentials.',
+      code: err.code || 'LOGIN_FAILED',
+      email: err.email || (req.body?.email ? String(req.body.email).toLowerCase().trim() : undefined)
+    });
   }
 });
 
@@ -111,6 +123,31 @@ apiRouter.post('/auth/google', async (req, res) => {
     res.json({ user, token, message: 'Signed in with Google successfully!' });
   } catch (err: any) {
     res.status(400).json({ error: err.message || 'Google authentication failed' });
+  }
+});
+
+apiRouter.post('/auth/reset-password', async (req, res) => {
+  try {
+    const { email, newPassword, confirmPassword } = req.body;
+    if (!email || !newPassword) {
+      return res.status(400).json({ error: 'Email and new password are required.' });
+    }
+    if (confirmPassword && newPassword !== confirmPassword) {
+      return res.status(400).json({ error: 'Passwords do not match.' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    }
+
+    const user = await dbStore.resetPassword(email, newPassword);
+    const token = `${user.id}:${Buffer.from(email.toLowerCase().trim()).toString('base64')}`;
+    res.json({ 
+      user, 
+      token, 
+      message: 'Password updated successfully! You are now logged in.' 
+    });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || 'Password reset failed.' });
   }
 });
 

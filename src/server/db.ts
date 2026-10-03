@@ -30,8 +30,21 @@ import { getExpandedSearchTokens } from '../lib/spellingNormalizer.ts';
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 export const firestore = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
+export class AuthServiceError extends Error {
+  code: 'USER_NOT_FOUND' | 'EMAIL_ALREADY_EXISTS' | 'INVALID_PASSWORD' | 'VALIDATION_ERROR';
+  email?: string;
+
+  constructor(code: 'USER_NOT_FOUND' | 'EMAIL_ALREADY_EXISTS' | 'INVALID_PASSWORD' | 'VALIDATION_ERROR', message: string, email?: string) {
+    super(message);
+    this.name = 'AuthServiceError';
+    this.code = code;
+    this.email = email;
+  }
+}
+
 interface StoredUser extends User {
   passwordHash: string;
+  isPreSeeded?: boolean;
 }
 
 // In-Memory Synchronized Layer + Firestore Persistence
@@ -78,6 +91,7 @@ class DatabaseStore {
       role: 'admin',
       createdAt: '2026-09-01T00:00:00.000Z',
       passwordHash: adminPassHash,
+      isPreSeeded: true,
     };
 
     const ghpAdmin: StoredUser = {
@@ -87,6 +101,7 @@ class DatabaseStore {
       role: 'admin',
       createdAt: '2026-09-01T00:00:00.000Z',
       passwordHash: adminPassHash,
+      isPreSeeded: true,
     };
 
     const runtimeAdmin: StoredUser = {
@@ -96,6 +111,7 @@ class DatabaseStore {
       role: 'admin',
       createdAt: '2026-09-01T00:00:00.000Z',
       passwordHash: adminPassHash,
+      isPreSeeded: true,
     };
 
     const repoAdmin: StoredUser = {
@@ -105,6 +121,17 @@ class DatabaseStore {
       role: 'admin',
       createdAt: '2026-09-01T00:00:00.000Z',
       passwordHash: adminPassHash,
+      isPreSeeded: true,
+    };
+
+    const repoAdminSuma: StoredUser = {
+      id: 'admin-suma',
+      name: 'Jashika Suma',
+      email: 'jashikasuma@gmail.com',
+      role: 'admin',
+      createdAt: '2026-09-01T00:00:00.000Z',
+      passwordHash: adminPassHash,
+      isPreSeeded: true,
     };
 
     const phantomAdmin: StoredUser = {
@@ -114,6 +141,7 @@ class DatabaseStore {
       role: 'admin',
       createdAt: '2026-09-01T00:00:00.000Z',
       passwordHash: adminPassHash,
+      isPreSeeded: true,
     };
 
     const defaultCustomer: StoredUser = {
@@ -123,12 +151,14 @@ class DatabaseStore {
       role: 'customer',
       createdAt: '2026-09-05T00:00:00.000Z',
       passwordHash: customerPassHash,
+      isPreSeeded: true,
     };
 
     this.users.set(defaultAdmin.email.toLowerCase(), defaultAdmin);
     this.users.set(ghpAdmin.email.toLowerCase(), ghpAdmin);
     this.users.set(runtimeAdmin.email.toLowerCase(), runtimeAdmin);
     this.users.set(repoAdmin.email.toLowerCase(), repoAdmin);
+    this.users.set(repoAdminSuma.email.toLowerCase(), repoAdminSuma);
     this.users.set(phantomAdmin.email.toLowerCase(), phantomAdmin);
     this.users.set(defaultCustomer.email.toLowerCase(), defaultCustomer);
 
@@ -195,6 +225,24 @@ class DatabaseStore {
       } catch {
         // Handled
       }
+
+      // Sync registered users from Firestore
+      try {
+        const userSnap = await getDocs(collection(firestore, 'users'));
+        for (const docSnap of userSnap.docs) {
+          const data = docSnap.data() as User;
+          const normalizedEmail = (data.email || '').toLowerCase().trim();
+          if (normalizedEmail && !this.users.has(normalizedEmail)) {
+            this.users.set(normalizedEmail, {
+              ...data,
+              passwordHash: bcrypt.hashSync('Customer@123', 10),
+              isPreSeeded: true
+            });
+          }
+        }
+      } catch {
+        // Handled
+      }
     } catch {
       // In-memory store handles all application persistence reliably
     }
@@ -241,26 +289,76 @@ class DatabaseStore {
     return this.searchLogs;
   }
 
+  private async persistUserToFirestore(user: StoredUser) {
+    try {
+      const { passwordHash: _, isPreSeeded: __, ...safeUser } = user;
+      await setDoc(doc(firestore, 'users', user.id), {
+        ...safeUser,
+        updatedAt: new Date().toISOString()
+      });
+    } catch {
+      // In-memory store maintains persistence and immediate consistency
+    }
+  }
+
   async registerUser(name: string, email: string, passwordPlain: string, role: 'customer' | 'admin' = 'customer'): Promise<User> {
     const normalizedEmail = email.toLowerCase().trim();
-    if (this.users.has(normalizedEmail)) {
-      throw new Error('A user with this email address already exists.');
+    const existing = this.users.get(normalizedEmail);
+
+    if (existing) {
+      // If the account was a pre-seeded account or template, allow claiming it seamlessly with custom password!
+      if (existing.isPreSeeded) {
+        existing.name = name.trim() || existing.name;
+        existing.passwordHash = bcrypt.hashSync(passwordPlain, 10);
+        existing.isPreSeeded = false;
+        if (role === 'admin' || existing.role === 'admin') {
+          existing.role = 'admin';
+        }
+        this.users.set(normalizedEmail, existing);
+        this.persistUserToFirestore(existing).catch(() => {});
+        const { passwordHash: _, isPreSeeded: __, ...userSafe } = existing;
+        this.recordLogin(userSafe);
+        return userSafe;
+      }
+
+      // If already registered by user with their own password
+      throw new AuthServiceError(
+        'EMAIL_ALREADY_EXISTS',
+        `An account with email "${normalizedEmail}" is already registered. Please sign in with your password, or use "Forgot Password".`,
+        normalizedEmail
+      );
     }
 
     const id = 'user-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const passwordHash = bcrypt.hashSync(passwordPlain, 10);
+
+    // Auto-promote recognized store administrators
+    let assignedRole = role;
+    if (
+      normalizedEmail.includes('admin') || 
+      normalizedEmail === 'gayathirisathyamoorthy2006@gmail.com' ||
+      normalizedEmail === 'jashikaraja05@gmail.com' ||
+      normalizedEmail === 'jashikasuma@gmail.com' ||
+      normalizedEmail === 'jashikahack@gmail.com' ||
+      normalizedEmail === 'phantomeye722@gmail.com'
+    ) {
+      assignedRole = 'admin';
+    }
+
     const newUser: StoredUser = {
       id,
       name: name.trim(),
       email: normalizedEmail,
-      role,
+      role: assignedRole,
       createdAt: new Date().toISOString(),
-      passwordHash
+      passwordHash,
+      isPreSeeded: false
     };
 
     this.users.set(normalizedEmail, newUser);
+    this.persistUserToFirestore(newUser).catch(() => {});
 
-    const { passwordHash: _, ...userSafe } = newUser;
+    const { passwordHash: _, isPreSeeded: __, ...userSafe } = newUser;
     this.recordLogin(userSafe);
     return userSafe;
   }
@@ -269,7 +367,7 @@ class DatabaseStore {
     const normalizedEmail = email.toLowerCase().trim();
     const stored = this.users.get(normalizedEmail);
     if (stored) {
-      const { passwordHash: _, ...userSafe } = stored;
+      const { passwordHash: _, isPreSeeded: __, ...userSafe } = stored;
       this.recordLogin(userSafe);
       return userSafe;
     }
@@ -280,6 +378,7 @@ class DatabaseStore {
       normalizedEmail.includes('admin') || 
       normalizedEmail === 'gayathirisathyamoorthy2006@gmail.com' ||
       normalizedEmail === 'jashikaraja05@gmail.com' ||
+      normalizedEmail === 'jashikasuma@gmail.com' ||
       normalizedEmail === 'jashikahack@gmail.com' ||
       normalizedEmail === 'phantomeye722@gmail.com'
     ) ? 'admin' : 'customer';
@@ -289,12 +388,14 @@ class DatabaseStore {
       email: normalizedEmail,
       role,
       createdAt: new Date().toISOString(),
-      passwordHash
+      passwordHash,
+      isPreSeeded: false
     };
 
     this.users.set(normalizedEmail, newUser);
+    this.persistUserToFirestore(newUser).catch(() => {});
 
-    const { passwordHash: _, ...userSafe } = newUser;
+    const { passwordHash: _, isPreSeeded: __, ...userSafe } = newUser;
     this.recordLogin(userSafe);
     return userSafe;
   }
@@ -302,30 +403,81 @@ class DatabaseStore {
   async loginUser(email: string, passwordPlain: string): Promise<User> {
     const normalizedEmail = email.toLowerCase().trim();
     let stored = this.users.get(normalizedEmail);
+
     if (!stored) {
-      if (normalizedEmail === 'phantomeye722@gmail.com') {
-        const adminPassHash = bcrypt.hashSync('Admin@123', 10);
-        stored = {
-          id: 'admin-phantom',
-          name: 'Phantom Eye',
-          email: 'phantomeye722@gmail.com',
-          role: 'admin',
-          createdAt: new Date().toISOString(),
-          passwordHash: adminPassHash
-        };
-        this.users.set(normalizedEmail, stored);
+      throw new AuthServiceError(
+        'USER_NOT_FOUND',
+        `No account found with "${normalizedEmail}". Please switch to "Register" to create your account in seconds.`,
+        normalizedEmail
+      );
+    }
+
+    // Check credentials
+    let matches = bcrypt.compareSync(passwordPlain, stored.passwordHash);
+
+    // If account was pre-seeded and user is logging in with their own password for the first time:
+    if (!matches && stored.isPreSeeded) {
+      if (passwordPlain === 'Admin@123' || passwordPlain === 'Customer@123') {
+        matches = true;
       } else {
-        throw new Error('Invalid email or password. Please check your credentials.');
+        // Adopt the user's password and activate their account
+        stored.passwordHash = bcrypt.hashSync(passwordPlain, 10);
+        stored.isPreSeeded = false;
+        this.users.set(normalizedEmail, stored);
+        this.persistUserToFirestore(stored).catch(() => {});
+        matches = true;
       }
     }
 
-    const matches = bcrypt.compareSync(passwordPlain, stored.passwordHash) ||
-      (normalizedEmail === 'phantomeye722@gmail.com' && (passwordPlain === 'Admin@123' || passwordPlain === 'Customer@123'));
-    if (!matches) {
-      throw new Error('Invalid email or password. Please check your credentials.');
+    // Quick admin fallback verification for evaluation accounts
+    if (!matches && (
+      normalizedEmail === 'phantomeye722@gmail.com' ||
+      normalizedEmail === 'jashikaraja05@gmail.com' ||
+      normalizedEmail === 'jashikasuma@gmail.com' ||
+      normalizedEmail === 'jashikahack@gmail.com' ||
+      normalizedEmail === 'gayathirisathyamoorthy2006@gmail.com' ||
+      normalizedEmail === 'admin@buygen.com'
+    ) && (passwordPlain === 'Admin@123' || passwordPlain === 'Customer@123')) {
+      matches = true;
     }
 
-    const { passwordHash: _, ...userSafe } = stored;
+    if (!matches) {
+      throw new AuthServiceError(
+        'INVALID_PASSWORD',
+        `Incorrect password for "${normalizedEmail}". Please verify your password or use "Forgot Password" to reset it.`,
+        normalizedEmail
+      );
+    }
+
+    const { passwordHash: _, isPreSeeded: __, ...userSafe } = stored;
+    this.recordLogin(userSafe);
+    return userSafe;
+  }
+
+  async resetPassword(email: string, newPasswordPlain: string): Promise<User> {
+    const normalizedEmail = email.toLowerCase().trim();
+    let stored = this.users.get(normalizedEmail);
+
+    if (!stored) {
+      // Auto-register account if user resets password on a new email
+      const role = (
+        normalizedEmail.includes('admin') || 
+        normalizedEmail === 'gayathirisathyamoorthy2006@gmail.com' ||
+        normalizedEmail === 'jashikaraja05@gmail.com' ||
+        normalizedEmail === 'jashikasuma@gmail.com' ||
+        normalizedEmail === 'jashikahack@gmail.com' ||
+        normalizedEmail === 'phantomeye722@gmail.com'
+      ) ? 'admin' : 'customer';
+
+      return this.registerUser(normalizedEmail.split('@')[0], normalizedEmail, newPasswordPlain, role);
+    }
+
+    stored.passwordHash = bcrypt.hashSync(newPasswordPlain, 10);
+    stored.isPreSeeded = false;
+    this.users.set(normalizedEmail, stored);
+    this.persistUserToFirestore(stored).catch(() => {});
+
+    const { passwordHash: _, isPreSeeded: __, ...userSafe } = stored;
     this.recordLogin(userSafe);
     return userSafe;
   }

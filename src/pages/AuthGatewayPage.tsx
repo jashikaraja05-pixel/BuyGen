@@ -11,7 +11,11 @@ import {
   EyeOff, 
   HelpCircle,
   X,
-  CheckCircle2
+  CheckCircle2,
+  UserPlus,
+  UserCheck,
+  KeyRound,
+  Info
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
 
@@ -20,7 +24,15 @@ interface AuthGatewayPageProps {
 }
 
 export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) => {
-  const { login, loginWithGoogle, register } = useAuth();
+  const { 
+    login, 
+    loginWithGoogle, 
+    register, 
+    resetPassword,
+    authFeedback,
+    clearAuthFeedback,
+    setAuthFeedback
+  } = useAuth();
   
   // Dual Experience Portals: 'customer' vs 'admin'
   const [portal, setPortal] = useState<'customer' | 'admin'>('customer');
@@ -42,29 +54,31 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
   // Forgot password modal state
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotSent, setForgotSent] = useState(false);
+  const [resetNewPass, setResetNewPass] = useState('');
+  const [resetConfirmPass, setResetConfirmPass] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // Switch between Customer and Admin portals without injecting hardcoded mock credentials
   const handlePortalSwitch = (targetPortal: 'customer' | 'admin') => {
     setPortal(targetPortal);
-    setError(null);
-    setSuccessMsg(null);
+    clearAuthFeedback();
   };
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password) {
-      setError('Please provide both email and password.');
+      setAuthFeedback({
+        type: 'error',
+        message: 'Please provide both email and password.',
+        code: 'VALIDATION_ERROR'
+      });
       return;
     }
     try {
       setLoading(true);
-      setError(null);
       await login(email.trim(), password);
 
       if (portal === 'admin' || email.toLowerCase().includes('admin')) {
@@ -72,8 +86,8 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
       } else {
         navigate('/');
       }
-    } catch (err: any) {
-      setError(err.message || 'Invalid credentials. Please verify your email and password.');
+    } catch {
+      // Handled in AuthContext
     } finally {
       setLoading(false);
     }
@@ -82,7 +96,7 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
   const handleGoogleLogin = async () => {
     try {
       setGoogleLoading(true);
-      setError(null);
+      clearAuthFeedback();
       const chosenEmail = email.trim() || (portal === 'admin' ? 'admin@buygen.com' : 'jashikahack@gmail.com');
       const chosenName = portal === 'admin' ? 'Store Administrator' : 'Google Customer';
       
@@ -93,8 +107,8 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
       } else {
         navigate('/');
       }
-    } catch (err: any) {
-      setError(err.message || 'Google sign-in failed. Please try again.');
+    } catch {
+      // Handled in AuthContext
     } finally {
       setGoogleLoading(false);
     }
@@ -103,26 +117,33 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!regName.trim() || !regEmail.trim() || !regPassword || !regConfirm) {
-      setError('All required fields must be filled.');
+      setAuthFeedback({
+        type: 'error',
+        message: 'All required registration fields must be filled.',
+        code: 'VALIDATION_ERROR'
+      });
       return;
     }
     if (regPassword !== regConfirm) {
-      setError('Passwords do not match.');
+      setAuthFeedback({
+        type: 'error',
+        message: 'Passwords do not match. Please re-type your password.',
+        code: 'VALIDATION_ERROR'
+      });
       return;
     }
     if (regPassword.length < 6) {
-      setError('Password must be at least 6 characters long.');
+      setAuthFeedback({
+        type: 'error',
+        message: 'Password must be at least 6 characters long.',
+        code: 'VALIDATION_ERROR'
+      });
       return;
     }
 
     try {
       setLoading(true);
-      setError(null);
-      
-      // Pass designated role based on active portal
       await register(regName.trim(), regEmail.trim(), regPassword, regConfirm, portal);
-      
-      setSuccessMsg(`${portal === 'admin' ? 'Admin' : 'Customer'} account created successfully! Entering BUYGEN...`);
       setTimeout(() => {
         if (portal === 'admin') {
           navigate('/admin');
@@ -130,20 +151,56 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
           navigate('/');
         }
       }, 500);
-    } catch (err: any) {
-      setError(err.message || 'Registration failed. That email might already be registered.');
+    } catch {
+      // Handled in AuthContext
     } finally {
       setLoading(false);
     }
   };
 
-  const handleForgotPasswordSubmit = (e: React.FormEvent) => {
+  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!forgotEmail) {
-      setError('Please enter your registered email address.');
+    if (!forgotEmail.trim() || !resetNewPass) {
+      setAuthFeedback({
+        type: 'error',
+        message: 'Please enter your email and a new password.',
+        code: 'VALIDATION_ERROR'
+      });
       return;
     }
-    setForgotSent(true);
+    if (resetNewPass.length < 6) {
+      setAuthFeedback({
+        type: 'error',
+        message: 'New password must be at least 6 characters long.',
+        code: 'VALIDATION_ERROR'
+      });
+      return;
+    }
+    if (resetConfirmPass && resetNewPass !== resetConfirmPass) {
+      setAuthFeedback({
+        type: 'error',
+        message: 'Passwords do not match.',
+        code: 'VALIDATION_ERROR'
+      });
+      return;
+    }
+
+    try {
+      setResetLoading(true);
+      await resetPassword(forgotEmail.trim(), resetNewPass, resetConfirmPass);
+      setShowForgotPassword(false);
+      setTimeout(() => {
+        if (portal === 'admin' || forgotEmail.toLowerCase().includes('admin')) {
+          navigate('/admin');
+        } else {
+          navigate('/');
+        }
+      }, 500);
+    } catch {
+      // Handled in AuthContext
+    } finally {
+      setResetLoading(false);
+    }
   };
 
   const isAdminPortal = portal === 'admin';
@@ -254,7 +311,7 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
         <div className="grid grid-cols-2 p-1 bg-slate-950/80 rounded-xl border border-slate-800 text-xs">
           <button
             type="button"
-            onClick={() => { setMode('login'); setError(null); setSuccessMsg(null); }}
+            onClick={() => { setMode('login'); clearAuthFeedback(); }}
             className={`py-2 rounded-lg font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
               mode === 'login'
                 ? isAdminPortal
@@ -269,7 +326,7 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
 
           <button
             type="button"
-            onClick={() => { setMode('register'); setError(null); setSuccessMsg(null); }}
+            onClick={() => { setMode('register'); clearAuthFeedback(); }}
             className={`py-2 rounded-lg font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
               mode === 'register'
                 ? isAdminPortal
@@ -288,19 +345,127 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
           isAdminPortal ? 'border-amber-500/30' : 'border-cyan-500/25'
         }`}>
           
-          {/* Error Message Alert */}
-          {error && (
-            <div className="p-3.5 bg-rose-500/15 border border-rose-500/40 rounded-xl text-xs text-rose-200 flex items-center gap-2.5 animate-shake">
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
+          {/* UNIFIED SMART AUTH FEEDBACK BANNER */}
+          {authFeedback && (
+            <div className={`p-4 rounded-2xl border text-xs transition-all duration-300 shadow-xl ${
+              authFeedback.code === 'USER_NOT_FOUND'
+                ? 'bg-gradient-to-r from-sky-950/90 to-cyan-950/70 border-cyan-500/50 text-cyan-100 shadow-cyan-500/10'
+                : authFeedback.code === 'EMAIL_ALREADY_EXISTS'
+                ? 'bg-gradient-to-r from-indigo-950/90 to-purple-950/70 border-indigo-500/50 text-indigo-100 shadow-indigo-500/10'
+                : authFeedback.code === 'INVALID_PASSWORD'
+                ? 'bg-gradient-to-r from-amber-950/90 to-orange-950/70 border-amber-500/50 text-amber-100 shadow-amber-500/10'
+                : authFeedback.type === 'success'
+                ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-100 shadow-emerald-500/10'
+                : 'bg-rose-950/80 border-rose-500/40 text-rose-100 shadow-rose-500/10'
+            }`}>
+              <div className="flex items-start gap-3">
+                <div className={`p-2 rounded-xl shrink-0 mt-0.5 ${
+                  authFeedback.code === 'USER_NOT_FOUND'
+                    ? 'bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-400/40'
+                    : authFeedback.code === 'EMAIL_ALREADY_EXISTS'
+                    ? 'bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-400/40'
+                    : authFeedback.code === 'INVALID_PASSWORD'
+                    ? 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-400/40'
+                    : authFeedback.type === 'success'
+                    ? 'bg-emerald-500/20 text-emerald-300'
+                    : 'bg-rose-500/20 text-rose-300'
+                }`}>
+                  {authFeedback.code === 'USER_NOT_FOUND' && <UserPlus className="w-4 h-4" />}
+                  {authFeedback.code === 'EMAIL_ALREADY_EXISTS' && <UserCheck className="w-4 h-4" />}
+                  {authFeedback.code === 'INVALID_PASSWORD' && <KeyRound className="w-4 h-4" />}
+                  {authFeedback.type === 'success' && <CheckCircle2 className="w-4 h-4" />}
+                  {(!authFeedback.code && authFeedback.type === 'error') && <AlertCircle className="w-4 h-4" />}
+                </div>
 
-          {/* Success Message Alert */}
-          {successMsg && (
-            <div className="p-3.5 bg-emerald-500/15 border border-emerald-500/40 rounded-xl text-xs text-emerald-200 flex items-center gap-2.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>{successMsg}</span>
+                <div className="flex-1 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <p className="font-heading font-bold text-sm tracking-tight text-white">
+                      {authFeedback.code === 'USER_NOT_FOUND' && 'No Account Found'}
+                      {authFeedback.code === 'EMAIL_ALREADY_EXISTS' && 'Account Already Registered'}
+                      {authFeedback.code === 'INVALID_PASSWORD' && 'Incorrect Password'}
+                      {authFeedback.type === 'success' && 'Success'}
+                      {(!authFeedback.code && authFeedback.type === 'error') && 'Notice'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={clearAuthFeedback}
+                      className="text-slate-400 hover:text-white p-0.5 rounded cursor-pointer transition"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-slate-300 leading-relaxed font-normal">
+                    {authFeedback.message}
+                  </p>
+
+                  {/* Contextual Action Shortcuts */}
+                  {authFeedback.code === 'USER_NOT_FOUND' && (
+                    <div className="pt-2 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const target = authFeedback.email || email;
+                          setRegEmail(target);
+                          setMode('register');
+                          clearAuthFeedback();
+                        }}
+                        className="py-2 px-3.5 bg-gradient-to-r from-cyan-400 to-sky-400 hover:from-cyan-300 hover:to-sky-300 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-cyan-500/20 transition cursor-pointer flex items-center gap-1.5"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>Create Account with {authFeedback.email || 'this email'} →</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {authFeedback.code === 'EMAIL_ALREADY_EXISTS' && (
+                    <div className="pt-2 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const target = authFeedback.email || regEmail;
+                          setEmail(target);
+                          setMode('login');
+                          clearAuthFeedback();
+                        }}
+                        className="py-2 px-3.5 bg-gradient-to-r from-indigo-500 via-sky-500 to-cyan-500 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-indigo-500/20 hover:opacity-95 transition cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Sign In with this Email →</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForgotEmail(authFeedback.email || regEmail || email);
+                          setShowForgotPassword(true);
+                          clearAuthFeedback();
+                        }}
+                        className="py-2 px-3.5 bg-slate-900 hover:bg-slate-800 text-amber-300 font-bold text-xs rounded-xl border border-amber-500/40 transition cursor-pointer flex items-center gap-1.5"
+                      >
+                        <KeyRound className="w-3.5 h-3.5" />
+                        <span>Reset Password</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {authFeedback.code === 'INVALID_PASSWORD' && (
+                    <div className="pt-2 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForgotEmail(authFeedback.email || email);
+                          setShowForgotPassword(true);
+                          clearAuthFeedback();
+                        }}
+                        className="py-2 px-3.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-500/20 hover:opacity-95 transition cursor-pointer flex items-center gap-1.5"
+                      >
+                        <KeyRound className="w-3.5 h-3.5" />
+                        <span>Reset Password Now</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -434,7 +599,7 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
                   {isAdminPortal ? "Need an administrator account? " : "Don't have an account? "}
                   <button
                     type="button"
-                    onClick={() => { setMode('register'); setError(null); }}
+                    onClick={() => { setMode('register'); clearAuthFeedback(); }}
                     className={`font-black underline cursor-pointer hover:opacity-90 ${
                       isAdminPortal ? 'text-amber-400 hover:text-amber-300' : 'text-cyan-400 hover:text-cyan-300'
                     }`}
@@ -552,7 +717,7 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
                   Already have an account?{' '}
                   <button
                     type="button"
-                    onClick={() => { setMode('login'); setError(null); }}
+                    onClick={() => { setMode('login'); clearAuthFeedback(); }}
                     className="text-cyan-400 hover:text-cyan-300 font-bold underline cursor-pointer"
                   >
                     Sign In instead
@@ -571,7 +736,7 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#0b0e22] border border-cyan-500/30 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl relative">
             <button
-              onClick={() => { setShowForgotPassword(false); setForgotSent(false); }}
+              onClick={() => { setShowForgotPassword(false); setResetNewPass(''); setResetConfirmPass(''); }}
               className="absolute top-4 right-4 text-slate-400 hover:text-white"
             >
               <X className="w-5 h-5" />
@@ -582,25 +747,14 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
               <h3 className="font-heading font-bold text-lg text-white">Reset Password</h3>
             </div>
 
-            {forgotSent ? (
-              <div className="space-y-3 text-center py-2">
-                <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
-                <p className="text-xs text-slate-300">
-                  Password reset link simulated and sent to <strong className="text-white">{forgotEmail}</strong>.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => { setShowForgotPassword(false); setForgotSent(false); }}
-                  className="w-full py-2 bg-slate-800 text-white font-bold text-xs rounded-xl hover:bg-slate-700 cursor-pointer"
-                >
-                  Return to Sign In
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleForgotPasswordSubmit} className="space-y-3">
-                <p className="text-xs text-slate-400">
-                  Enter your registered email address to receive password reset instructions.
-                </p>
+            <form onSubmit={handleForgotPasswordSubmit} className="space-y-3">
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Enter your registered email address and choose a new password to restore access immediately.
+              </p>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Registered Email Address *
+                </label>
                 <input
                   type="email"
                   required
@@ -609,14 +763,44 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
                   onChange={(e) => setForgotEmail(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 focus:border-cyan-400 rounded-xl text-xs text-white"
                 />
-                <button
-                  type="submit"
-                  className="w-full py-2.5 bg-gradient-to-r from-cyan-500 to-indigo-600 text-slate-950 font-black text-xs rounded-xl cursor-pointer"
-                >
-                  Send Reset Link
-                </button>
-              </form>
-            )}
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  New Password * (min 6 characters)
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Enter new password"
+                  value={resetNewPass}
+                  onChange={(e) => setResetNewPass(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 focus:border-cyan-400 rounded-xl text-xs text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Confirm New Password *
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Repeat new password"
+                  value={resetConfirmPass}
+                  onChange={(e) => setResetConfirmPass(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 focus:border-cyan-400 rounded-xl text-xs text-white"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={resetLoading}
+                className="w-full py-3 bg-gradient-to-r from-cyan-500 to-indigo-600 text-slate-950 font-black text-xs rounded-xl cursor-pointer hover:opacity-95 transition shadow-lg shadow-cyan-500/20"
+              >
+                {resetLoading ? 'Updating Password...' : 'Save New Password & Sign In'}
+              </button>
+            </form>
           </div>
         </div>
       )}

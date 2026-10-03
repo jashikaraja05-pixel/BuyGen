@@ -10,7 +10,10 @@ import {
   Store,
   Eye, 
   EyeOff, 
-  CheckCircle2 
+  CheckCircle2,
+  UserCheck,
+  KeyRound,
+  X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
 
@@ -19,7 +22,7 @@ interface RegisterPageProps {
 }
 
 export const RegisterPage: React.FC<RegisterPageProps> = ({ navigate }) => {
-  const { register } = useAuth();
+  const { register, authFeedback, clearAuthFeedback, setAuthFeedback } = useAuth();
   const [role, setRole] = useState<'customer' | 'admin'>('customer');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -28,38 +31,48 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ navigate }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const isAdminRole = role === 'admin';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim() || !password || !confirmPassword) {
-      setError('Please complete all registration fields.');
+      setAuthFeedback({
+        type: 'error',
+        message: 'Please complete all required registration fields.',
+        code: 'VALIDATION_ERROR'
+      });
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match. Please verify.');
+      setAuthFeedback({
+        type: 'error',
+        message: 'Passwords do not match. Please verify your password.',
+        code: 'VALIDATION_ERROR'
+      });
       return;
     }
 
     if (password.length < 6) {
-      setError('Password must contain at least 6 characters.');
+      setAuthFeedback({
+        type: 'error',
+        message: 'Password must contain at least 6 characters.',
+        code: 'VALIDATION_ERROR'
+      });
       return;
     }
 
     try {
       setLoading(true);
-      setError(null);
       await register(name.trim(), email.trim(), password, confirmPassword, role);
       if (role === 'admin') {
         navigate('/admin');
       } else {
         navigate('/');
       }
-    } catch (err: any) {
-      setError(err.message || 'Registration failed. This email may already be in use.');
+    } catch {
+      // Handled in AuthContext
     } finally {
       setLoading(false);
     }
@@ -105,7 +118,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ navigate }) => {
         <div className="grid grid-cols-2 p-1.5 bg-slate-900/90 rounded-2xl border border-slate-800 shadow-inner">
           <button
             type="button"
-            onClick={() => { setRole('customer'); setError(null); }}
+            onClick={() => { setRole('customer'); clearAuthFeedback(); }}
             className={`py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
               !isAdminRole
                 ? 'bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-600 text-slate-950 shadow-[0_0_15px_rgba(6,182,212,0.4)]'
@@ -118,7 +131,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ navigate }) => {
 
           <button
             type="button"
-            onClick={() => { setRole('admin'); setError(null); }}
+            onClick={() => { setRole('admin'); clearAuthFeedback(); }}
             className={`py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
               isAdminRole
                 ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 shadow-[0_0_15px_rgba(251,191,36,0.4)]'
@@ -135,10 +148,66 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ navigate }) => {
           isAdminRole ? 'border-amber-500/30' : 'border-cyan-500/25'
         }`}>
           
-          {error && (
-            <div className="p-3.5 bg-rose-500/15 border border-rose-500/40 rounded-xl text-xs text-rose-200 flex items-center gap-2.5 animate-shake">
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-              <span>{error}</span>
+          {/* UNIFIED SMART AUTH FEEDBACK BANNER */}
+          {authFeedback && (
+            <div className={`p-4 rounded-2xl border text-xs transition-all duration-300 shadow-xl ${
+              authFeedback.code === 'EMAIL_ALREADY_EXISTS'
+                ? 'bg-gradient-to-r from-indigo-950/90 to-purple-950/70 border-indigo-500/50 text-indigo-100 shadow-indigo-500/10'
+                : authFeedback.type === 'success'
+                ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-100 shadow-emerald-500/10'
+                : 'bg-rose-950/80 border-rose-500/40 text-rose-100 shadow-rose-500/10'
+            }`}>
+              <div className="flex items-start gap-3">
+                <div className={`p-2 rounded-xl shrink-0 mt-0.5 ${
+                  authFeedback.code === 'EMAIL_ALREADY_EXISTS'
+                    ? 'bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-400/40'
+                    : authFeedback.type === 'success'
+                    ? 'bg-emerald-500/20 text-emerald-300'
+                    : 'bg-rose-500/20 text-rose-300'
+                }`}>
+                  {authFeedback.code === 'EMAIL_ALREADY_EXISTS' && <UserCheck className="w-4 h-4" />}
+                  {authFeedback.type === 'success' && <CheckCircle2 className="w-4 h-4" />}
+                  {(!authFeedback.code && authFeedback.type === 'error') && <AlertCircle className="w-4 h-4" />}
+                </div>
+
+                <div className="flex-1 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <p className="font-heading font-bold text-sm tracking-tight text-white">
+                      {authFeedback.code === 'EMAIL_ALREADY_EXISTS' && 'Account Already Registered'}
+                      {authFeedback.type === 'success' && 'Success'}
+                      {(!authFeedback.code && authFeedback.type === 'error') && 'Notice'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={clearAuthFeedback}
+                      className="text-slate-400 hover:text-white p-0.5 rounded cursor-pointer transition"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-slate-300 leading-relaxed font-normal">
+                    {authFeedback.message}
+                  </p>
+
+                  {/* Contextual Action Shortcuts */}
+                  {authFeedback.code === 'EMAIL_ALREADY_EXISTS' && (
+                    <div className="pt-2 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          clearAuthFeedback();
+                          navigate('/login');
+                        }}
+                        className="py-2 px-3.5 bg-gradient-to-r from-indigo-500 via-sky-500 to-cyan-500 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-indigo-500/20 hover:opacity-95 transition cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Sign In with {authFeedback.email || 'this email'} →</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
