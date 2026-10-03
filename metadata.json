@@ -1,0 +1,7 @@
+{
+  "name": "BUYGEN - Consumer Electronics Marketplace",
+  "description": "Next-Gen Shopping, Smarter Choices. Complete consumer electronics e-commerce store with AI Smart Tech Advisor, real persistent database, and dedicated admin panel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

@@ -1,0 +1,157 @@
+export type UserRole = 'customer' | 'admin';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  createdAt: string;
+}
+
+export interface SpecificationItem {
+  name: string;
+  value: string;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  brand: string;
+  categoryId: string;
+  categoryName: string;
+  subcategory: string;
+  description: string;
+  price: number;
+  originalPrice: number;
+  discount: number; // percentage
+  stock: number;
+  rating: number;
+  reviewCount: number;
+  images: string[];
+  specifications: Record<string, string>;
+  featured?: boolean;
+  trending?: boolean;
+  newArrival?: boolean;
+  badge?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  parentId?: string;
+  description: string;
+  icon: string;
+  subcategories: string[];
+  productCount?: number;
+}
+
+export interface CartItem {
+  productId: string;
+  name: string;
+  brand: string;
+  price: number;
+  originalPrice: number;
+  image: string;
+  quantity: number;
+  stock: number;
+}
+
+export interface WishlistItem {
+  id: string;
+  userId: string;
+  productId: string;
+  product?: Product;
+  createdAt: string;
+}
+
+export type PaymentMethod = 'UPI Simulation' | 'Card Simulation' | 'Cash on Delivery Simulation';
+
+export type OrderStatus = 'Pending' | 'Confirmed' | 'Processing' | 'Shipped' | 'Delivered';
+
+export interface ShippingAddress {
+  fullName: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+}
+
+export interface Order {
+  id: string;
+  userId: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  shippingAddress: ShippingAddress;
+  items: CartItem[];
+  subtotal: number;
+  discount: number;
+  deliveryFee: number;
+  total: number;
+  paymentMethod: PaymentMethod;
+  status: OrderStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Review {
+  id: string;
+  productId: string;
+  userId: string;
+  userName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
+export interface ProductFilters {
+  category?: string;
+  subcategory?: string;
+  brand?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  minRating?: number;
+  inStockOnly?: boolean;
+  search?: string;
+  sortBy?: 'price-asc' | 'price-desc' | 'rating' | 'newest' | 'popularity';
+}
+
+export interface AdminMetrics {
+  totalProducts: number;
+  totalUsers: number;
+  totalOrders: number;
+  totalRevenue: number;
+  lowStockCount: number;
+  recentOrders: Order[];
+  categoryBreakdown: { category: string; count: number; revenue: number }[];
+}
+
+export interface AIAdvisorRecommendation {
+  productId: string;
+  productName: string;
+  brand: string;
+  price: number;
+  image: string;
+  rating: number;
+  stock: number;
+  type: 'recommended' | 'alternative';
+  keySpecs: string[];
+  whyItMatches: string;
+  difference?: string;
+}
+
+export interface AIAdvisorResponse {
+  extractedRequirements: {
+    budget?: number;
+    category?: string;
+    keyFeatures?: string[];
+    useCase?: string;
+    brandPreference?: string;
+  };
+  summary: string;
+  recommendations: AIAdvisorRecommendation[];
+}
