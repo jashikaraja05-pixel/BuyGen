@@ -45,9 +45,11 @@ export const collections = {
   paymentMethods: collection(firestore, 'payment_methods'),
   searchLogs: collection(firestore, 'search_logs'),
   loginLogs: collection(firestore, 'login_logs'),
+  admins: collection(firestore, 'admins')
 };
 
 export { 
+  collection,
   doc, 
   getDoc, 
   getDocs, 

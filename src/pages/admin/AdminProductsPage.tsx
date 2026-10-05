@@ -24,7 +24,7 @@ import {
   FileImage,
   FolderPlus
 } from 'lucide-react';
-import type { Product, Category } from '../../types/index.ts';
+import type { Product, Category, Brand } from '../../types/index.ts';
 import { api } from '../../services/api.ts';
 import { DataTable, ColumnDef, FilterConfig } from '../../components/admin/DataTable.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
@@ -34,6 +34,7 @@ export const AdminProductsPage: React.FC = () => {
   const [viewScope, setViewScope] = useState<'my' | 'all'>('my');
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<string>('all');
@@ -57,6 +58,7 @@ export const AdminProductsPage: React.FC = () => {
   // Form Fields
   const [name, setName] = useState('');
   const [brand, setBrand] = useState('');
+  const [brandMode, setBrandMode] = useState<'select' | 'custom'>('select');
   const [categoryMode, setCategoryMode] = useState<'select' | 'custom'>('select');
   const [categoryId, setCategoryId] = useState('');
   const [customCategoryName, setCustomCategoryName] = useState('');
@@ -103,12 +105,14 @@ export const AdminProductsPage: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [prodRes, catRes] = await Promise.all([
+      const [prodRes, catRes, brandRes] = await Promise.all([
         api.getProducts(viewScope === 'my' && user?.email ? { adminEmail: user.email } : {}),
-        api.getCategories()
+        api.getCategories(),
+        api.getBrands().catch(() => ({ brands: [] }))
       ]);
       setProducts(prodRes.products || []);
       setCategories(catRes.categories || []);
+      setBrands(brandRes.brands || []);
       if (catRes.categories?.length && !categoryId) {
         setCategoryId(catRes.categories[0].id);
       }
@@ -126,7 +130,9 @@ export const AdminProductsPage: React.FC = () => {
   const openCreateModal = () => {
     setEditingProduct(null);
     setName('');
-    setBrand('');
+    const defaultBrandName = brands.length > 0 ? brands[0].name : '';
+    setBrand(defaultBrandName);
+    setBrandMode(brands.length > 0 ? 'select' : 'custom');
     setCategoryMode(categories.length > 0 ? 'select' : 'custom');
     setCategoryId(categories[0]?.id || '');
     setCustomCategoryName('');
@@ -158,6 +164,7 @@ export const AdminProductsPage: React.FC = () => {
     setExtraBrands([]);
     setName(product.name);
     setBrand(product.brand);
+    setBrandMode('select');
     setCategoryMode('select');
     setCategoryId(product.categoryId);
     setCustomCategoryName(product.categoryName || '');
@@ -300,6 +307,27 @@ export const AdminProductsPage: React.FC = () => {
     try {
       setSaving(true);
       setFormError(null);
+
+      // Auto-register brand in Firestore linked to category if not already present
+      const existingBrand = brands.find(b => b.name.toLowerCase() === brand.trim().toLowerCase());
+      if (!existingBrand) {
+        try {
+          await api.createBrand({
+            name: brand.trim(),
+            categoryIds: targetCatId ? [targetCatId] : [],
+            active: true
+          });
+        } catch (bErr) {
+          console.warn('Brand auto-registration note:', bErr);
+        }
+      } else if (targetCatId && (!existingBrand.categoryIds || !existingBrand.categoryIds.includes(targetCatId))) {
+        try {
+          const updatedCatIds = [...(existingBrand.categoryIds || []), targetCatId];
+          await api.updateBrand(existingBrand.id, { categoryIds: updatedCatIds });
+        } catch (bErr) {
+          console.warn('Brand category link note:', bErr);
+        }
+      }
 
       const parsedColours = colours
         .split(',')
@@ -991,18 +1019,79 @@ export const AdminProductsPage: React.FC = () => {
                   </span>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                        Brand *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. Apple, Samsung, Sony, ASUS"
-                        value={brand}
-                        onChange={(e) => setBrand(e.target.value)}
-                        className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden font-medium"
-                      />
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                          Brand *
+                        </label>
+                        <div className="flex items-center p-0.5 bg-slate-900 rounded-lg border border-slate-800 text-[11px]">
+                          <button
+                            type="button"
+                            onClick={() => setBrandMode('select')}
+                            className={`px-2 py-0.5 rounded-md font-bold transition cursor-pointer ${
+                              brandMode === 'select' ? 'bg-amber-400 text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            Choose Brand
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setBrandMode('custom')}
+                            className={`px-2 py-0.5 rounded-md font-bold transition cursor-pointer ${
+                              brandMode === 'custom' ? 'bg-amber-400 text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            + Type Brand
+                          </button>
+                        </div>
+                      </div>
+
+                      {brandMode === 'select' && brands.length > 0 ? (
+                        <select
+                          value={brand}
+                          onChange={(e) => setBrand(e.target.value)}
+                          className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden cursor-pointer font-medium"
+                        >
+                          <option value="">-- Select from {brands.length} Registered Brands --</option>
+                          {brands.map((b) => (
+                            <option key={b.id} value={b.name}>
+                              {b.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Apple, Samsung, OnePlus, Google, Xiaomi"
+                          value={brand}
+                          onChange={(e) => setBrand(e.target.value)}
+                          className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-amber-400 focus:outline-hidden font-medium"
+                        />
+                      )}
+
+                      {/* Quick clickable brand suggestion pills */}
+                      {brands.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {brands.slice(0, 8).map((b) => (
+                            <button
+                              key={b.id}
+                              type="button"
+                              onClick={() => {
+                                setBrand(b.name);
+                                setBrandMode('select');
+                              }}
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition cursor-pointer border ${
+                                brand.toLowerCase() === b.name.toLowerCase()
+                                  ? 'bg-amber-400 text-slate-950 border-amber-400'
+                                  : 'bg-slate-950 text-slate-400 hover:text-white border-slate-800'
+                              }`}
+                            >
+                              {b.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div>

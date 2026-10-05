@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
 import { initialCategories, initialProducts, initialReviews } from '../seedData.ts';
-import { firestore, doc, setDoc, deleteDoc, getDocs, collections } from './firebase.ts';
+import { firestore, collection, doc, setDoc, deleteDoc, getDocs, collections } from './firebase.ts';
 import { getExpandedSearchTokens } from '../../lib/spellingNormalizer.ts';
 import type { 
   User, 
@@ -312,7 +312,22 @@ class PersistentStorage {
       }
     } catch {}
 
-    // 8. Ensure default administrator exists in both Firestore and cache
+    // 8. Sync Admins registry from Cloud Firestore
+    try {
+      const adminSnap = await getDocs(collections.admins);
+      if (!adminSnap.empty) {
+        for (const docSnap of adminSnap.docs) {
+          const adm = docSnap.data() as { email?: string; role?: string };
+          const target = this.data.users[docSnap.id] || 
+            (adm.email ? Object.values(this.data.users).find(u => u.email.toLowerCase() === adm.email!.toLowerCase()) : null);
+          if (target) {
+            target.role = 'admin';
+          }
+        }
+      }
+    } catch {}
+
+    // 9. Ensure default administrator exists in both Firestore and cache
     const hasAdmin = Object.values(this.data.users).some(u => u.email === 'admin@buygen.com' && u.role === 'admin');
     if (!hasAdmin) {
       const adminId = 'admin_master_1';
@@ -327,6 +342,13 @@ class PersistentStorage {
       this.data.users[adminId] = adminUser;
       safeSetDoc(doc(firestore, 'users', adminId), adminUser);
       safeSetDoc(doc(firestore, 'admins', adminId), { email: 'admin@buygen.com', role: 'admin' });
+    }
+
+    // Mirror all active admins into admins collection in Firestore
+    for (const u of Object.values(this.data.users)) {
+      if (u.role === 'admin') {
+        safeSetDoc(doc(firestore, 'admins', u.id), { id: u.id, email: u.email, name: u.name, role: 'admin' });
+      }
     }
 
     this.persist();
@@ -357,6 +379,16 @@ class PersistentStorage {
       lastLogin: user.lastLogin
     });
 
+    if (user.role === 'admin') {
+      safeSetDoc(doc(firestore, 'admins', user.id), {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: 'admin',
+        createdAt: user.createdAt
+      });
+    }
+
     return user;
   }
 
@@ -374,6 +406,17 @@ class PersistentStorage {
       role: updated.role,
       lastLogin: updated.lastLogin
     }, { merge: true });
+
+    if (updated.role === 'admin') {
+      safeSetDoc(doc(firestore, 'admins', id), {
+        id,
+        name: updated.name,
+        email: updated.email,
+        role: 'admin'
+      });
+    } else if (updates.role && updates.role !== 'admin') {
+      safeDeleteDoc(doc(firestore, 'admins', id));
+    }
 
     return updated;
   }

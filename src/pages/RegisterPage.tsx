@@ -65,8 +65,8 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ navigate }) => {
 
     try {
       setLoading(true);
-      await register(name.trim(), email.trim(), password, confirmPassword, role);
-      if (role === 'admin') {
+      const regUser = await register(name.trim(), email.trim(), password, confirmPassword, role);
+      if (regUser?.role === 'admin') {
         navigate('/admin');
       } else {
         navigate('/');

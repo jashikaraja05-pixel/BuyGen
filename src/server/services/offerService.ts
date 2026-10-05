@@ -19,12 +19,21 @@ export const offerService = {
       title: (data.title || 'Special Promotion').trim(),
       subtitle: data.subtitle || '',
       badge: data.badge || 'LIMITED TIME DEAL',
-      discountPercentage: Number(data.discountPercentage) || 10,
-      promoCode: data.promoCode || 'BUYGEN',
-      imageUrl: data.imageUrl || 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?q=80&w=800&auto=format&fit=crop',
-      bgGradient: data.bgGradient || 'from-cyan-600 via-indigo-600 to-purple-800',
+      discountType: data.discountType || 'percentage',
+      discountPercentage: Number(data.discountPercentage) || (data.discountType === 'percentage' ? Number(data.discountValue) || 10 : undefined),
+      discountValue: Number(data.discountValue) || Number(data.discountPercentage) || 0,
+      category: data.category || 'all',
+      brand: data.brand || 'all',
+      productId: data.productId || 'all',
+      minPurchase: Number(data.minPurchase) || 0,
+      startDate: data.startDate || '',
+      endDate: data.endDate || '',
+      promoCode: (data.promoCode || 'BUYGEN').trim().toUpperCase(),
+      imageUrl: data.imageUrl || '',
+      bgGradient: data.bgGradient || 'from-indigo-950 via-purple-950 to-slate-950',
       active: data.active !== false,
-      createdAt: now
+      createdAt: now,
+      updatedAt: now
     };
 
     return storage.createOffer(newOffer);

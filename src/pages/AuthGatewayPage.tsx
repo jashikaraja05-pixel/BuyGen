@@ -162,14 +162,12 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
 
     try {
       setLoading(true);
-      await register(regName.trim(), regEmail.trim(), regPassword, regConfirm, portal);
-      setTimeout(() => {
-        if (portal === 'admin') {
-          navigate('/admin');
-        } else {
-          navigate('/');
-        }
-      }, 500);
+      const regUser = await register(regName.trim(), regEmail.trim(), regPassword, regConfirm, portal);
+      if (regUser?.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     } catch {
       // Handled in AuthContext
     } finally {

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { adminService } from '../services/adminService.ts';
 import { productService } from '../services/productService.ts';
 import { offerService } from '../services/offerService.ts';
+import { storage } from '../config/storage.ts';
 import { authMiddleware, requireAdmin } from '../middleware/authMiddleware.ts';
 import type { AuthenticatedRequest } from '../middleware/authMiddleware.ts';
 
@@ -28,6 +29,20 @@ adminRouter.get('/users', async (_req: AuthenticatedRequest, res, next) => {
     res.json({ users });
   } catch (err) {
     next(err);
+  }
+});
+
+adminRouter.patch('/users/:id/role', async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+    if (role !== 'customer' && role !== 'admin') {
+      return res.status(400).json({ error: 'Role must be either "customer" or "admin".' });
+    }
+    const user = adminService.updateUserRole(id, role, req.user?.id);
+    res.json({ user, message: `User role updated to ${role} in Firestore.` });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || 'Failed to update user role' });
   }
 });
 

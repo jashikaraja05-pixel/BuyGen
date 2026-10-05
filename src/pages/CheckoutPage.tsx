@@ -51,6 +51,29 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ navigate }) => {
   // Processing state
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reservationId, setReservationId] = useState<string | null>(null);
+  const reservationRef = React.useRef<string | null>(null);
+  const orderCompletedRef = React.useRef(false);
+
+  // Safely reserve stock atomically in backend on checkout initiation
+  useEffect(() => {
+    if (items.length > 0 && !reservationRef.current) {
+      api.reserveStock(items.map(it => ({ productId: it.productId, quantity: it.quantity })))
+        .then(res => {
+          setReservationId(res.reservationId);
+          reservationRef.current = res.reservationId;
+        })
+        .catch(err => {
+          setError(err.message || 'Could not reserve warehouse stock for checkout. One or more items may be out of stock.');
+        });
+    }
+
+    return () => {
+      if (reservationRef.current && !orderCompletedRef.current) {
+        api.releaseReservation(reservationRef.current).catch(() => {});
+      }
+    };
+  }, [items]);
 
   useEffect(() => {
     const fetchMethods = async () => {
@@ -112,8 +135,11 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ navigate }) => {
         city: city.trim(),
         state: state.trim(),
         pincode: pincode.trim(),
-        paymentMethod: paymentMethodName
+        paymentMethod: paymentMethodName,
+        reservationId: reservationId || undefined
       });
+
+      orderCompletedRef.current = true;
 
       // Refresh cart state to reflect newly placed order
       await refreshCart();
@@ -510,6 +536,17 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ navigate }) => {
                 })}
               </div>
             )}
+
+            {/* Clear Simulated Payment Notice */}
+            <div className="p-3.5 bg-cyan-950/40 border border-cyan-500/30 rounded-2xl flex items-start gap-2.5 text-xs text-cyan-200">
+              <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold text-white block">Simulated Payment Sandbox Environment</span>
+                <span className="text-[11px] text-slate-300 leading-relaxed block mt-0.5">
+                  This e-commerce application uses simulated checkout confirmation. No real bank or UPI transfers are executed, and real financial credentials (CVV/PINs) are never requested or stored.
+                </span>
+              </div>
+            </div>
 
           </div>
 

@@ -105,6 +105,28 @@ export const adminService = {
     return users.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
 
+  updateUserRole(userId: string, newRole: 'customer' | 'admin', currentAdminId?: string): User {
+    if (userId === currentAdminId && newRole !== 'admin') {
+      throw new Error('You cannot remove admin privileges from your own account.');
+    }
+    const user = storage.getUserById(userId);
+    if (!user) {
+      throw new Error(`User "${userId}" was not found.`);
+    }
+    const updated = storage.updateUser(userId, { role: newRole });
+    if (!updated) {
+      throw new Error('Failed to update user role.');
+    }
+    return {
+      id: updated.id,
+      name: updated.name,
+      email: updated.email,
+      role: updated.role,
+      createdAt: updated.createdAt,
+      lastLogin: updated.lastLogin
+    };
+  },
+
   getAdminSearches(): SearchLog[] {
     return storage.getSearchLogs();
   },

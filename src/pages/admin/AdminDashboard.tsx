@@ -15,13 +15,18 @@ import {
   Sparkles,
   X,
   Tag,
-  AlertTriangle
+  AlertTriangle,
+  Building2,
+  Boxes,
+  CreditCard,
+  ArrowRight
 } from 'lucide-react';
 import type { AdminMetrics, UserLoginLog, SearchLog, OfferBanner } from '../../types/index.ts';
+import type { AdminTab } from './AdminLayout.tsx';
 import { api } from '../../services/api.ts';
 
 interface AdminDashboardProps {
-  setAdminTab: (tab: 'dashboard' | 'products' | 'categories' | 'orders' | 'users') => void;
+  setAdminTab: (tab: AdminTab) => void;
   navigate: (path: string) => void;
 }
 
@@ -363,6 +368,69 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setAdminTab }) =
           </p>
         </div>
 
+      </div>
+
+      {/* Store Management Hub Quick Access */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+        <button
+          type="button"
+          onClick={() => setAdminTab('brands')}
+          className="p-4 bg-[#0b0e24] hover:bg-slate-900 border border-slate-800 hover:border-amber-500/50 rounded-2xl text-left transition cursor-pointer group shadow-md"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <Building2 className="w-5 h-5 text-amber-400" />
+            <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-amber-400 group-hover:translate-x-1 transition" />
+          </div>
+          <span className="font-heading font-black text-sm text-white block">Brands & Makers</span>
+          <span className="text-[11px] text-slate-400 block mt-0.5">
+            {metrics?.totalBrands ?? 0} registered brands
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setAdminTab('inventory')}
+          className="p-4 bg-[#0b0e24] hover:bg-slate-900 border border-slate-800 hover:border-cyan-500/50 rounded-2xl text-left transition cursor-pointer group shadow-md"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <Boxes className="w-5 h-5 text-cyan-400" />
+            <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-cyan-400 group-hover:translate-x-1 transition" />
+          </div>
+          <span className="font-heading font-black text-sm text-white block">Stock & Inventory</span>
+          <span className="text-[11px] text-slate-400 block mt-0.5">
+            {metrics?.lowStockCount ? `${metrics.lowStockCount} low stock` : 'Healthy stock levels'}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setAdminTab('offers')}
+          className="p-4 bg-[#0b0e24] hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-2xl text-left transition cursor-pointer group shadow-md"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <Tag className="w-5 h-5 text-emerald-400" />
+            <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-1 transition" />
+          </div>
+          <span className="font-heading font-black text-sm text-white block">Offers & Discounts</span>
+          <span className="text-[11px] text-slate-400 block mt-0.5">
+            {offers.filter(o => o.active).length} active promotions
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setAdminTab('payments')}
+          className="p-4 bg-[#0b0e24] hover:bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-2xl text-left transition cursor-pointer group shadow-md"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <CreditCard className="w-5 h-5 text-indigo-400" />
+            <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-1 transition" />
+          </div>
+          <span className="font-heading font-black text-sm text-white block">Payment & Store QR</span>
+          <span className="text-[11px] text-slate-400 block mt-0.5">
+            UPI, Card & COD Gateways
+          </span>
+        </button>
       </div>
 
       {/* SECTION 0: PROMOTIONAL OFFERS (FRONT PAGE BANNER MANAGER) */}

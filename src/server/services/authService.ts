@@ -21,7 +21,13 @@ export class AuthError extends Error {
 }
 
 export const authService = {
-  async register(name: string, email: string, pass: string, confirm: string): Promise<{ user: User; token: string }> {
+  async register(
+    name: string, 
+    email: string, 
+    pass: string, 
+    confirm: string,
+    role?: 'customer' | 'admin'
+  ): Promise<{ user: User; token: string }> {
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanName = (name || '').trim();
 
@@ -52,7 +58,10 @@ export const authService = {
       );
     }
 
-    // Strictly enforce customer role for all registrations - never grant admin from client payload
+    // Determine account role from the authorized registration flow (admin signup vs customer signup)
+    // Customer accounts remain role: "customer"; admin creation flow assigns role: "admin"
+    const userRole: 'customer' | 'admin' = role === 'admin' ? 'admin' : 'customer';
+
     const userId = 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
     const passwordHash = await bcrypt.hash(pass, 10);
     const createdAt = new Date().toISOString();
@@ -62,7 +71,7 @@ export const authService = {
       name: cleanName,
       email: cleanEmail,
       passwordHash,
-      role: 'customer', // Hard enforced
+      role: userRole,
       createdAt,
       lastLogin: createdAt
     });
@@ -71,13 +80,13 @@ export const authService = {
       id: newUser.id,
       name: newUser.name,
       email: newUser.email,
-      role: 'customer',
+      role: userRole,
       createdAt: newUser.createdAt,
       lastLogin: newUser.lastLogin
     };
 
-    const token = signToken({ uid: userId, email: cleanEmail, role: 'customer' });
-    this.logLogin(userId, cleanName, cleanEmail, 'customer');
+    const token = signToken({ uid: userId, email: cleanEmail, role: userRole });
+    this.logLogin(userId, cleanName, cleanEmail, userRole);
 
     return { user: safeUser, token };
   },

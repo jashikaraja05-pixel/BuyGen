@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, Eye, ShieldCheck } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext.tsx';
 import { CartProvider } from './context/CartContext.tsx';
 import { WishlistProvider } from './context/WishlistContext.tsx';
@@ -30,10 +30,12 @@ import { ComparePage } from './pages/ComparePage.tsx';
 import { OrderTrackingPage } from './pages/OrderTrackingPage.tsx';
 
 // Admin Pages
-import { AdminLayout } from './pages/admin/AdminLayout.tsx';
+import { AdminLayout, type AdminTab } from './pages/admin/AdminLayout.tsx';
 import { AdminDashboard } from './pages/admin/AdminDashboard.tsx';
 import { AdminProductsPage } from './pages/admin/AdminProductsPage.tsx';
 import { AdminCategoriesPage } from './pages/admin/AdminCategoriesPage.tsx';
+import { AdminBrandsPage } from './pages/admin/AdminBrandsPage.tsx';
+import { AdminInventoryPage } from './pages/admin/AdminInventoryPage.tsx';
 import { AdminOffersPage } from './pages/admin/AdminOffersPage.tsx';
 import { AdminOrdersPage } from './pages/admin/AdminOrdersPage.tsx';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage.tsx';
@@ -49,7 +51,8 @@ function AppInner() {
     return window.location.pathname + window.location.search || '/';
   });
 
-  const [adminTab, setAdminTab] = useState<'dashboard' | 'products' | 'categories' | 'offers' | 'orders' | 'users' | 'payments'>('dashboard');
+  const [adminTab, setAdminTab] = useState<AdminTab>('dashboard');
+  const [adminStorePreview, setAdminStorePreview] = useState<boolean>(false);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -103,57 +106,61 @@ function AppInner() {
   const [pathPart, searchPart] = currentPath.split('?');
   const searchParams = new URLSearchParams(searchPart || '');
 
-  // Admin Portal Routes with Strict Role-Based Access Control
-  if (pathPart.startsWith('/admin')) {
-    if (user.role !== 'admin') {
-      return (
-        <div className="min-h-screen bg-[#070814] flex flex-col items-center justify-center p-6 text-center text-white space-y-6">
-          <div className="w-20 h-20 rounded-3xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 shadow-xl shadow-rose-500/10 animate-pulse">
-            <ShieldAlert className="w-10 h-10" />
-          </div>
-          <div className="space-y-2 max-w-md">
-            <h2 className="font-heading font-black text-2xl sm:text-3xl text-white">
-              Access Denied: Admin Only
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-              Your current account (<strong className="text-slate-200">{user.email}</strong>) is registered as a <span className="text-cyan-400 font-bold">Store Customer</span>. Access to the BUYGEN Store Administrator Console is restricted to authorized platform owners.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <button
-              onClick={() => navigate('/')}
-              className="px-6 py-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white font-bold text-xs rounded-xl transition cursor-pointer"
-            >
-              Return to Customer Store
-            </button>
-            <button
-              onClick={async () => {
-                await logout();
-                navigate('/login');
-              }}
-              className="px-6 py-3 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-500/20 hover:opacity-95 transition cursor-pointer"
-            >
-              Sign In as Administrator
-            </button>
-          </div>
-        </div>
-      );
-    }
-
+  // Dedicated Standard E-Commerce Admin Dashboard (Exclusively for authorized admins)
+  if (user.role === 'admin' && !adminStorePreview) {
     return (
       <AdminLayout
         currentAdminTab={adminTab}
         setAdminTab={setAdminTab}
         navigate={navigate}
+        onPreviewStore={() => setAdminStorePreview(true)}
       >
         {adminTab === 'dashboard' && <AdminDashboard setAdminTab={setAdminTab} navigate={navigate} />}
-        {adminTab === 'products' && <AdminProductsPage />}
         {adminTab === 'categories' && <AdminCategoriesPage />}
+        {adminTab === 'brands' && <AdminBrandsPage />}
+        {adminTab === 'products' && <AdminProductsPage />}
+        {adminTab === 'inventory' && <AdminInventoryPage />}
         {adminTab === 'offers' && <AdminOffersPage />}
         {adminTab === 'orders' && <AdminOrdersPage />}
         {adminTab === 'payments' && <AdminPaymentsPage />}
         {adminTab === 'users' && <AdminUsersPage />}
       </AdminLayout>
+    );
+  }
+
+  // Admin Portal URL Protection (Customers blocked from /admin)
+  if (pathPart.startsWith('/admin')) {
+    return (
+      <div className="min-h-screen bg-[#070814] flex flex-col items-center justify-center p-6 text-center text-white space-y-6">
+        <div className="w-20 h-20 rounded-3xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 shadow-xl shadow-rose-500/10 animate-pulse">
+          <ShieldAlert className="w-10 h-10" />
+        </div>
+        <div className="space-y-2 max-w-md">
+          <h2 className="font-heading font-black text-2xl sm:text-3xl text-white">
+            Access Denied: Admin Only
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+            Your current account (<strong className="text-slate-200">{user.email}</strong>) is registered as a <span className="text-cyan-400 font-bold">Store Customer</span>. Access to the BUYGEN Store Administrator Console is restricted to authorized platform owners.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <button
+            onClick={() => navigate('/')}
+            className="px-6 py-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white font-bold text-xs rounded-xl transition cursor-pointer"
+          >
+            Return to Customer Store
+          </button>
+          <button
+            onClick={async () => {
+              await logout();
+              navigate('/login');
+            }}
+            className="px-6 py-3 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-500/20 hover:opacity-95 transition cursor-pointer"
+          >
+            Sign In as Administrator
+          </button>
+        </div>
+      </div>
     );
   }
 
@@ -213,6 +220,24 @@ function AppInner() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#070814] text-slate-100">
+      {user.role === 'admin' && adminStorePreview && (
+        <aside aria-label="Storefront preview banner" className="sticky top-0 z-[100] bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 font-bold px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-xs shadow-xl border-b border-amber-600">
+          <div className="flex items-center gap-2">
+            <Eye className="w-4 h-4 text-slate-950 stroke-[2.5]" />
+            <span>
+              Customer Storefront Preview Mode — Viewing live store as customer sees it. (Admin: <strong className="text-slate-900">{user.name}</strong>)
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAdminStorePreview(false)}
+            className="px-3 py-1 bg-slate-950 hover:bg-slate-900 text-amber-300 font-black text-xs rounded-lg transition shadow-md cursor-pointer flex items-center gap-1.5"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+            <span>Return to Admin Console</span>
+          </button>
+        </aside>
+      )}
       <Navbar currentPath={pathPart} navigate={navigate} />
       <main className="flex-1 bg-[#080918]">
         {pageContent}

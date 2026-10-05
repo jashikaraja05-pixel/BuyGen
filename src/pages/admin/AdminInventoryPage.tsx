@@ -157,7 +157,7 @@ export const AdminInventoryPage: React.FC = () => {
         <div className="bg-[#0b0e24] border border-emerald-500/20 p-4 rounded-2xl">
           <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block flex items-center gap-1.5">
             <CheckCircle className="w-3.5 h-3.5" />
-            <span>Healthy Stock (>5)</span>
+            <span>Healthy Stock (&gt;5)</span>
           </span>
           <div className="flex items-baseline justify-between mt-2">
             <span className="font-heading font-black text-2xl text-emerald-400">

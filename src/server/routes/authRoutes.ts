@@ -7,8 +7,8 @@ export const authRouter = Router();
 
 authRouter.post('/register', async (req, res, next) => {
   try {
-    const { name, email, password, confirmPassword } = req.body;
-    const result = await authService.register(name, email, password, confirmPassword);
+    const { name, email, password, confirmPassword, role } = req.body;
+    const result = await authService.register(name, email, password, confirmPassword, role);
     res.status(201).json({
       ...result,
       message: 'Account created successfully! Welcome to BUYGEN.'

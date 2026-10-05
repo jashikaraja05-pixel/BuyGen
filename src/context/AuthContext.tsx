@@ -29,19 +29,44 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Fresh app start: User is NEVER auto-logged in on startup.
-  // Explicit login is strictly required ("edutha odane login aga koodathu login pannunathan")
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [user, setUser] = useState<User | null>(() => getStoredUser());
+  const [token, setToken] = useState<string | null>(() => getStoredToken());
+  const [loading, setLoading] = useState<boolean>(() => !!getStoredToken());
   const [authFeedback, setAuthFeedback] = useState<AuthFeedback | null>(null);
 
-  // Erase any existing stored sessions immediately so everyone starts completely logged out
+  // Verify and hydrate stored session with authoritative backend Firestore user profile on load / page refresh
   useEffect(() => {
-    clearStoredAuth();
-    setUser(null);
-    setToken(null);
-    setLoading(false);
+    const verifySession = async () => {
+      const storedToken = getStoredToken();
+      if (!storedToken) {
+        setUser(null);
+        setToken(null);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const res = await api.getMe();
+        if (res?.user) {
+          setUser(res.user);
+          setToken(storedToken);
+          setStoredAuth(storedToken, res.user);
+        } else {
+          clearStoredAuth();
+          setUser(null);
+          setToken(null);
+        }
+      } catch (err) {
+        console.warn('Session verification note:', err);
+        clearStoredAuth();
+        setUser(null);
+        setToken(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    verifySession();
   }, []);
 
   const clearAuthFeedback = () => setAuthFeedback(null);

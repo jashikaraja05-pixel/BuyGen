@@ -17,7 +17,7 @@ import {
   Layers,
   ArrowRight
 } from 'lucide-react';
-import type { OfferBanner } from '../../types/index.ts';
+import type { OfferBanner, Category, Brand } from '../../types/index.ts';
 import { api } from '../../services/api.ts';
 
 const PRESET_GRADIENTS = [
@@ -37,6 +37,8 @@ const PRESET_IMAGES = [
 
 export const AdminOffersPage: React.FC = () => {
   const [offers, setOffers] = useState<OfferBanner[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOffer, setEditingOffer] = useState<OfferBanner | null>(null);
@@ -45,7 +47,14 @@ export const AdminOffersPage: React.FC = () => {
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [badge, setBadge] = useState('SPECIAL OFFER');
+  const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
   const [discountPercentage, setDiscountPercentage] = useState<number | ''>(25);
+  const [discountValue, setDiscountValue] = useState<number | ''>(500);
+  const [targetCategory, setTargetCategory] = useState<string>('all');
+  const [targetBrand, setTargetBrand] = useState<string>('all');
+  const [minPurchase, setMinPurchase] = useState<number | ''>(0);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [promoCode, setPromoCode] = useState('BUYGEN25');
   const [imageUrl, setImageUrl] = useState('');
   const [bgGradient, setBgGradient] = useState(PRESET_GRADIENTS[0].value);
@@ -57,8 +66,14 @@ export const AdminOffersPage: React.FC = () => {
   const loadOffers = async () => {
     try {
       setLoading(true);
-      const res = await api.getAdminOffers();
+      const [res, catRes, brandRes] = await Promise.all([
+        api.getAdminOffers(),
+        api.getCategories().catch(() => ({ categories: [] })),
+        api.getBrands().catch(() => ({ brands: [] }))
+      ]);
       setOffers(res.offers || []);
+      setCategories(catRes.categories || []);
+      setBrands(brandRes.brands || []);
     } catch (err) {
       console.error('Failed to load offers', err);
     } finally {
@@ -75,7 +90,16 @@ export const AdminOffersPage: React.FC = () => {
     setTitle('');
     setSubtitle('Exclusive limited-time discount on top brand electronics with manufacturer warranty.');
     setBadge('SPECIAL OFFER');
+    setDiscountType('percentage');
     setDiscountPercentage(30);
+    setDiscountValue(500);
+    setTargetCategory('all');
+    setTargetBrand('all');
+    setMinPurchase(0);
+    setStartDate(new Date().toISOString().split('T')[0]);
+    const nextMonth = new Date();
+    nextMonth.setDate(nextMonth.getDate() + 30);
+    setEndDate(nextMonth.toISOString().split('T')[0]);
     setPromoCode('BUYGEN30');
     setImageUrl(PRESET_IMAGES[0].url);
     setBgGradient(PRESET_GRADIENTS[0].value);
@@ -89,7 +113,14 @@ export const AdminOffersPage: React.FC = () => {
     setTitle(offer.title);
     setSubtitle(offer.subtitle || '');
     setBadge(offer.badge || 'SPECIAL OFFER');
+    setDiscountType(offer.discountType || 'percentage');
     setDiscountPercentage(offer.discountPercentage ?? '');
+    setDiscountValue(offer.discountValue ?? (offer.discountPercentage ?? ''));
+    setTargetCategory(offer.category || 'all');
+    setTargetBrand(offer.brand || 'all');
+    setMinPurchase(offer.minPurchase ?? 0);
+    setStartDate(offer.startDate || '');
+    setEndDate(offer.endDate || '');
     setPromoCode(offer.promoCode || '');
     setImageUrl(offer.imageUrl || '');
     setBgGradient(offer.bgGradient || PRESET_GRADIENTS[0].value);
@@ -147,7 +178,14 @@ export const AdminOffersPage: React.FC = () => {
         title: title.trim(),
         subtitle: subtitle.trim(),
         badge: badge.trim() || 'SPECIAL OFFER',
-        discountPercentage: discountPercentage !== '' ? Number(discountPercentage) : undefined,
+        discountType,
+        discountPercentage: discountType === 'percentage' && discountPercentage !== '' ? Number(discountPercentage) : undefined,
+        discountValue: discountValue !== '' ? Number(discountValue) : undefined,
+        category: targetCategory,
+        brand: targetBrand,
+        minPurchase: minPurchase !== '' ? Number(minPurchase) : 0,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
         promoCode: promoCode.trim().toUpperCase() || undefined,
         imageUrl: imageUrl.trim() || undefined,
         bgGradient,
@@ -263,6 +301,34 @@ export const AdminOffersPage: React.FC = () => {
                         {offer.subtitle}
                       </p>
                     )}
+
+                    {/* Targeting and Validity details */}
+                    <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
+                      {offer.discountValue && offer.discountType === 'fixed' && (
+                        <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold">
+                          Flat ₹{offer.discountValue} OFF
+                        </span>
+                      )}
+                      {offer.category && offer.category !== 'all' && (
+                        <span className="px-2 py-0.5 rounded bg-slate-900/80 border border-slate-700 text-cyan-300">
+                          Category: {categories.find(c => c.id === offer.category)?.name || offer.category}
+                        </span>
+                      )}
+                      {offer.brand && offer.brand !== 'all' && (
+                        <span className="px-2 py-0.5 rounded bg-slate-900/80 border border-slate-700 text-amber-300">
+                          Brand: {offer.brand}
+                        </span>
+                      )}
+                      {offer.endDate && (
+                        <span className={`px-2 py-0.5 rounded border ${
+                          new Date(offer.endDate).getTime() < Date.now()
+                            ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 font-bold'
+                            : 'bg-slate-900/80 border-slate-700 text-slate-400'
+                        }`}>
+                          {new Date(offer.endDate).getTime() < Date.now() ? 'Expired' : `Valid till ${new Date(offer.endDate).toLocaleDateString()}`}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {offer.imageUrl && (
@@ -455,17 +521,73 @@ export const AdminOffersPage: React.FC = () => {
 
                 <div>
                   <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1">
-                    Discount (%)
+                    Discount Type
+                  </label>
+                  <select
+                    value={discountType}
+                    onChange={(e) => setDiscountType(e.target.value as 'percentage' | 'fixed')}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 focus:border-amber-400 rounded-xl text-white font-medium focus:outline-hidden cursor-pointer"
+                  >
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="fixed">Flat Amount (₹)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1">
+                    {discountType === 'percentage' ? 'Discount Value (%)' : 'Discount Value (₹)'} *
                   </label>
                   <input
                     type="number"
                     min="1"
-                    max="100"
-                    placeholder="e.g. 35"
-                    value={discountPercentage}
-                    onChange={(e) => setDiscountPercentage(e.target.value ? Number(e.target.value) : '')}
+                    required
+                    placeholder={discountType === 'percentage' ? 'e.g. 25' : 'e.g. 1000'}
+                    value={discountType === 'percentage' ? discountPercentage : discountValue}
+                    onChange={(e) => {
+                      const val = e.target.value ? Number(e.target.value) : '';
+                      if (discountType === 'percentage') {
+                        setDiscountPercentage(val);
+                      } else {
+                        setDiscountValue(val);
+                      }
+                    }}
                     className="w-full px-3 py-2 bg-slate-950 border border-slate-800 focus:border-amber-400 rounded-xl text-white focus:outline-hidden font-mono font-bold"
                   />
+                </div>
+              </div>
+
+              {/* Category & Brand Targeting */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1">
+                    Applicable Category
+                  </label>
+                  <select
+                    value={targetCategory}
+                    onChange={(e) => setTargetCategory(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 focus:border-amber-400 rounded-xl text-white font-medium focus:outline-hidden cursor-pointer"
+                  >
+                    <option value="all">All Categories</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1">
+                    Applicable Brand
+                  </label>
+                  <select
+                    value={targetBrand}
+                    onChange={(e) => setTargetBrand(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 focus:border-amber-400 rounded-xl text-white font-medium focus:outline-hidden cursor-pointer"
+                  >
+                    <option value="all">All Brands</option>
+                    {brands.map((b) => (
+                      <option key={b.id} value={b.name}>{b.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -474,10 +596,51 @@ export const AdminOffersPage: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. BUYGEN35"
+                    placeholder="e.g. BUYGEN25"
                     value={promoCode}
                     onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                     className="w-full px-3 py-2 bg-slate-950 border border-slate-800 focus:border-amber-400 rounded-xl text-white focus:outline-hidden font-mono font-bold uppercase"
+                  />
+                </div>
+              </div>
+
+              {/* Validity Dates and Min Purchase */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 focus:border-amber-400 rounded-xl text-white focus:outline-hidden font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1">
+                    End Date (Expiry)
+                  </label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 focus:border-amber-400 rounded-xl text-white focus:outline-hidden font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1">
+                    Min Purchase (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 1999"
+                    value={minPurchase}
+                    onChange={(e) => setMinPurchase(e.target.value ? Number(e.target.value) : '')}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 focus:border-amber-400 rounded-xl text-white focus:outline-hidden font-mono font-bold"
                   />
                 </div>
               </div>
