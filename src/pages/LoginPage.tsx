@@ -63,8 +63,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
 
     try {
       setLoading(true);
-      await login(email.trim(), password);
-      if (email.toLowerCase().includes('admin') || activeTab === 'admin') {
+      const loggedIn = await login(email.trim(), password);
+      if (loggedIn?.role === 'admin') {
         navigate('/admin');
       } else {
         navigate('/');
@@ -138,9 +138,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
 
     try {
       setResetLoading(true);
-      await resetPassword(forgotEmail.trim(), resetNewPass, resetConfirmPass);
+      const resetUser = await resetPassword(forgotEmail.trim(), resetNewPass, resetConfirmPass);
       setShowForgotPassword(false);
-      if (activeTab === 'admin' || forgotEmail.toLowerCase().includes('admin')) {
+      if (resetUser?.role === 'admin') {
         navigate('/admin');
       } else {
         navigate('/');

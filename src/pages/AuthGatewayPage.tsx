@@ -84,9 +84,9 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
     }
     try {
       setLoading(true);
-      await login(email.trim(), password);
+      const loggedIn = await login(email.trim(), password);
 
-      if (portal === 'admin' || email.toLowerCase().includes('admin')) {
+      if (loggedIn?.role === 'admin') {
         navigate('/admin');
       } else {
         navigate('/');
@@ -206,10 +206,10 @@ export const AuthGatewayPage: React.FC<AuthGatewayPageProps> = ({ navigate }) =>
 
     try {
       setResetLoading(true);
-      await resetPassword(forgotEmail.trim(), resetNewPass, resetConfirmPass);
+      const resetUser = await resetPassword(forgotEmail.trim(), resetNewPass, resetConfirmPass);
       setShowForgotPassword(false);
       setTimeout(() => {
-        if (portal === 'admin' || forgotEmail.toLowerCase().includes('admin')) {
+        if (resetUser?.role === 'admin') {
           navigate('/admin');
         } else {
           navigate('/');

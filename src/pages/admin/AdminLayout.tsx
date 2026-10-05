@@ -12,14 +12,33 @@ import {
   Lock,
   Mail,
   AlertCircle,
-  Tag
+  Tag,
+  Building2,
+  Boxes,
+  Eye,
+  Trash2,
+  Sparkles,
+  CheckCircle
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { api } from '../../services/api.ts';
+
+export type AdminTab = 
+  | 'dashboard' 
+  | 'categories' 
+  | 'brands' 
+  | 'products' 
+  | 'inventory' 
+  | 'offers' 
+  | 'orders' 
+  | 'users' 
+  | 'payments';
 
 interface AdminLayoutProps {
-  currentAdminTab: 'dashboard' | 'products' | 'categories' | 'offers' | 'orders' | 'users' | 'payments';
-  setAdminTab: (tab: 'dashboard' | 'products' | 'categories' | 'offers' | 'orders' | 'users' | 'payments') => void;
+  currentAdminTab: AdminTab;
+  setAdminTab: (tab: AdminTab) => void;
   navigate: (path: string) => void;
+  onPreviewStore?: () => void;
   children: React.ReactNode;
 }
 
@@ -27,6 +46,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   currentAdminTab, 
   setAdminTab, 
   navigate, 
+  onPreviewStore,
   children 
 }) => {
   const { user, isAdmin, login, logout } = useAuth();
@@ -34,6 +54,44 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   const [adminPassword, setAdminPassword] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
   const [loggingIn, setLoggingIn] = useState(false);
+
+  // Quick Catalogue Utility Status
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const handleCleanCatalog = async () => {
+    if (!window.confirm('Are you sure you want to clean the catalogue? This will remove all products and categories from Firestore, leaving an empty database.')) {
+      return;
+    }
+    try {
+      setActionLoading(true);
+      const res = await api.cleanCatalog();
+      setActionNotice(`Catalogue cleaned: ${res.deletedProducts} products and ${res.deletedCategories} categories removed.`);
+      setTimeout(() => setActionNotice(null), 4000);
+      window.location.reload();
+    } catch (err: any) {
+      alert(err.message || 'Failed to clean catalogue');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSeedStarterCatalog = async () => {
+    if (!window.confirm('Import starter demo electronics catalog (smartphones, laptops, audio) into Firestore?')) {
+      return;
+    }
+    try {
+      setActionLoading(true);
+      const res = await api.seedStarterCatalog();
+      setActionNotice(`Demo catalog imported: ${res.productsCount} products, ${res.categoriesCount} categories, ${res.brandsCount} brands.`);
+      setTimeout(() => setActionNotice(null), 4000);
+      window.location.reload();
+    } catch (err: any) {
+      alert(err.message || 'Failed to import starter catalog');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   // If not logged in as Admin, show dedicated Admin Portal Login Gate
   if (!user || !isAdmin) {
@@ -161,56 +219,59 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   }
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'products', label: 'Products & Inventory', icon: Package },
-    { id: 'categories', label: 'Categories', icon: FolderTree },
-    { id: 'offers', label: 'Offers & Banners', icon: Tag },
-    { id: 'orders', label: 'Orders', icon: ShoppingBag },
-    { id: 'payments', label: 'Payments & QR', icon: CreditCard },
-    { id: 'users', label: 'Users', icon: Users },
+    { id: 'dashboard' as AdminTab, label: 'Dashboard & Analytics', icon: LayoutDashboard },
+    { id: 'categories' as AdminTab, label: 'Categories', icon: FolderTree },
+    { id: 'brands' as AdminTab, label: 'Brands', icon: Building2 },
+    { id: 'products' as AdminTab, label: 'Products', icon: Package },
+    { id: 'inventory' as AdminTab, label: 'Inventory & Stock', icon: Boxes },
+    { id: 'offers' as AdminTab, label: 'Offers & Discounts', icon: Tag },
+    { id: 'orders' as AdminTab, label: 'Orders', icon: ShoppingBag },
+    { id: 'users' as AdminTab, label: 'Users', icon: Users },
+    { id: 'payments' as AdminTab, label: 'Payments & Store QR', icon: CreditCard },
   ];
 
   return (
     <div className="min-h-screen bg-[#070814] text-white flex flex-col md:flex-row">
       
       {/* Admin Sidebar */}
-      <aside className="w-full md:w-64 bg-[#090b1c] text-white shrink-0 p-6 flex flex-col justify-between border-r border-slate-800/90 shadow-2xl">
-        <div className="space-y-8">
+      <aside className="w-full md:w-64 bg-[#090b1c] text-white shrink-0 p-5 flex flex-col justify-between border-r border-slate-800/90 shadow-2xl">
+        <div className="space-y-6">
           
           {/* Admin Header & Switcher */}
-          <div className="space-y-4">
+          <div className="space-y-3 pb-3 border-b border-slate-800/80">
             <div className="flex items-center gap-3">
               <img 
                 src="/buygen-logo.jpg" 
                 alt="BUYGEN" 
-                className="w-10 h-10 rounded-xl object-cover ring-1 ring-amber-500/50 shadow-lg shadow-amber-500/20" 
+                className="w-9 h-9 rounded-xl object-cover ring-1 ring-amber-500/50 shadow-md shadow-amber-500/20" 
               />
               <div>
-                <span className="font-heading font-black text-lg text-white">
+                <span className="font-heading font-black text-base text-white">
                   BUY<span className="bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent">GEN</span>
                 </span>
-                <span className="block text-[10px] font-bold tracking-wider uppercase text-amber-400">
-                  Consumer Electronics
+                <span className="block text-[9px] font-bold tracking-wider uppercase text-amber-400">
+                  Electronics Store Manager
                 </span>
-                <span className="block text-[9px] font-semibold text-slate-400">
-                  Admin Console
+                <span className="block text-[8px] font-semibold text-emerald-400">
+                  ● Verified Admin Active
                 </span>
               </div>
             </div>
 
-            {/* Quick Switch to Customer Store */}
+            {/* Quick Preview Customer Store */}
             <button
               type="button"
-              onClick={() => navigate('/')}
-              className="w-full py-2.5 px-3 bg-gradient-to-r from-indigo-600 to-cyan-600 hover:opacity-95 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
+              onClick={onPreviewStore ? onPreviewStore : () => navigate('/')}
+              className="w-full py-2 px-3 bg-gradient-to-r from-indigo-600 to-cyan-600 hover:opacity-95 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
+              title="Inspect customer shopping view"
             >
-              <Store className="w-4 h-4" />
-              <span>← Customer Store</span>
+              <Eye className="w-3.5 h-3.5" />
+              <span>Preview Customer Store</span>
             </button>
           </div>
 
           {/* Navigation Links */}
-          <nav className="space-y-1.5">
+          <nav className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentAdminTab === item.id;
@@ -218,25 +279,57 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setAdminTab(item.id as any)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
+                  onClick={() => setAdminTab(item.id)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
                     isActive 
-                      ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 font-black' 
+                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 font-black' 
                       : 'text-slate-400 hover:bg-slate-900 hover:text-white'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                  <span>{item.label}</span>
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span className="truncate">{item.label}</span>
                 </button>
               );
             })}
           </nav>
         </div>
 
-        {/* Footer info & Logout */}
-        <div className="pt-6 border-t border-slate-800/80 space-y-3">
+        {/* Catalog Utilities & Logout */}
+        <div className="pt-4 border-t border-slate-800/80 space-y-3">
+          {actionNotice && (
+            <div className="p-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[10px] rounded-lg flex items-center gap-1.5">
+              <CheckCircle className="w-3 h-3 text-emerald-400 shrink-0" />
+              <span>{actionNotice}</span>
+            </div>
+          )}
+
+          {/* Quick Catalogue Utilities */}
+          <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+            <button
+              type="button"
+              onClick={handleCleanCatalog}
+              disabled={actionLoading}
+              className="p-1.5 bg-slate-900 hover:bg-rose-950/60 border border-slate-800 text-rose-400 rounded-lg font-bold flex items-center justify-center gap-1 transition cursor-pointer"
+              title="Reset catalogue to zero items"
+            >
+              <Trash2 className="w-3 h-3" />
+              <span>Reset Zero</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSeedStarterCatalog}
+              disabled={actionLoading}
+              className="p-1.5 bg-slate-900 hover:bg-amber-950/60 border border-slate-800 text-amber-400 rounded-lg font-bold flex items-center justify-center gap-1 transition cursor-pointer"
+              title="Import demo starter products"
+            >
+              <Sparkles className="w-3 h-3" />
+              <span>Demo Pack</span>
+            </button>
+          </div>
+
           <div className="px-1 text-[11px] text-slate-400">
-            <span className="block text-slate-500">Admin Account:</span>
+            <span className="block text-slate-500">Logged in as:</span>
             <span className="font-bold text-amber-300 block truncate">{user.name}</span>
             <span className="text-[10px] text-slate-400 font-mono block truncate">{user.email}</span>
           </div>
@@ -252,45 +345,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         </div>
       </aside>
 
-      {/* Main Admin Content Body */}
-      <main className="flex-1 p-4 sm:p-8 space-y-6 bg-[#070814]">
-        {/* Admin Top Header Bar */}
-        <div className="bg-[#0b0e24] rounded-2xl border border-slate-800 p-4 flex flex-wrap items-center justify-between gap-4 shadow-xl">
-          <div className="flex items-center gap-3">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
-            <div>
-              <h2 className="font-heading font-black text-white text-lg capitalize">
-                {currentAdminTab} Management
-              </h2>
-              <span className="text-[11px] text-slate-400 font-medium">
-                BUYGEN Consumer Electronics Store Manager • Live Database Connected
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => navigate('/products')}
-              className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/30 font-bold text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer"
-            >
-              <span>Catalog View</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/')}
-              className="px-3.5 py-1.5 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition cursor-pointer"
-            >
-              <Store className="w-3.5 h-3.5" />
-              <span>Customer Store</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Content area */}
+      {/* Main Admin Content Area */}
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
         {children}
       </main>
-
     </div>
   );
 };

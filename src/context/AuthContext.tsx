@@ -18,10 +18,10 @@ interface AuthContextType {
   authFeedback: AuthFeedback | null;
   clearAuthFeedback: () => void;
   setAuthFeedback: (feedback: AuthFeedback | null) => void;
-  login: (email: string, pass: string) => Promise<void>;
-  loginWithGoogle: (email?: string, name?: string) => Promise<void>;
-  register: (name: string, email: string, pass: string, confirm: string, role?: 'customer' | 'admin') => Promise<void>;
-  resetPassword: (email: string, pass: string, confirm?: string) => Promise<void>;
+  login: (email: string, pass: string) => Promise<User>;
+  loginWithGoogle: (email?: string, name?: string) => Promise<User>;
+  register: (name: string, email: string, pass: string, confirm: string, role?: 'customer' | 'admin') => Promise<User>;
+  resetPassword: (email: string, pass: string, confirm?: string) => Promise<User>;
   logout: () => void;
   setUser: (user: User | null) => void;
 }
@@ -57,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         type: 'success',
         message: 'Welcome back! Signed in successfully.'
       });
+      return res.user;
     } catch (err: any) {
       const feedback: AuthFeedback = {
         type: 'error',
@@ -81,6 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         type: 'success',
         message: 'Signed in with Google successfully!'
       });
+      return res.user;
     } catch (err: any) {
       const feedback: AuthFeedback = {
         type: 'error',
@@ -105,6 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         type: 'success',
         message: `${res.user.role === 'admin' ? 'Admin' : 'Customer'} account created successfully!`
       });
+      return res.user;
     } catch (err: any) {
       const feedback: AuthFeedback = {
         type: 'error',
@@ -129,6 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         type: 'success',
         message: 'Password reset successfully! You are now logged in.'
       });
+      return res.user;
     } catch (err: any) {
       const feedback: AuthFeedback = {
         type: 'error',

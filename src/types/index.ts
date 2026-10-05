@@ -54,6 +54,18 @@ export interface Category {
   productCount?: number;
 }
 
+export interface Brand {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  logoUrl?: string;
+  categoryIds?: string[]; // Associated categories
+  active: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface CartItem {
   productId: string;
   name: string;
@@ -81,7 +93,9 @@ export interface PaymentMethodConfig {
   enabled: boolean;
   description: string;
   upiId?: string;
+  payeeName?: string;
   qrCodeUrl?: string;
+  qrCodeCustomBase64?: string;
   instructions?: string;
 }
 
@@ -144,12 +158,21 @@ export interface OfferBanner {
   title: string;
   subtitle: string;
   badge?: string;
+  discountType?: 'percentage' | 'fixed';
   discountPercentage?: number;
+  discountValue?: number;
+  category?: string; // categoryId or 'all'
+  brand?: string; // brand name or 'all'
+  productId?: string; // productId or 'all'
+  minPurchase?: number;
+  startDate?: string;
+  endDate?: string;
   promoCode?: string;
   imageUrl?: string;
   bgGradient?: string;
   active: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Review {
@@ -215,11 +238,16 @@ export interface OrderFilters {
 export interface AdminMetrics {
   totalProducts: number;
   totalCategories: number;
+  totalBrands?: number;
   totalUsers: number;
   loggedInUsersCount?: number;
   totalOrders: number;
+  pendingOrders?: number;
+  deliveredOrders?: number;
   totalRevenue: number;
   lowStockCount: number;
+  outOfStockCount?: number;
+  activeOffersCount?: number;
   totalSearches: number;
   searchLogs: SearchLog[];
   recentLogins: UserLoginLog[];

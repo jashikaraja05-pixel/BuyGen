@@ -2,6 +2,7 @@ import type {
   User, 
   Product, 
   Category, 
+  Brand,
   CartItem, 
   Order, 
   Review, 
@@ -252,6 +253,27 @@ export const api = {
       method: 'DELETE'
     }),
 
+  // Brands
+  getBrands: (category?: string) =>
+    request<{ brands: Brand[] }>(`/brands${category ? `?category=${encodeURIComponent(category)}` : ''}`),
+
+  createBrand: (data: Partial<Brand>) =>
+    request<{ brand: Brand; message: string }>('/brands', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  updateBrand: (id: string, data: Partial<Brand>) =>
+    request<{ brand: Brand; message: string }>(`/brands/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+  deleteBrand: (id: string) =>
+    request<{ success: boolean; message: string }>(`/brands/${id}`, {
+      method: 'DELETE'
+    }),
+
   // Promotional Offers & Banners (Added by Admin)
   getOffers: () => request<{ offers: OfferBanner[] }>('/offers'),
 
@@ -312,7 +334,19 @@ export const api = {
       body: JSON.stringify({ productId })
     }),
 
-  // Orders
+  // Orders & Stock Reservation
+  reserveStock: (items: { productId: string; quantity: number }[]) =>
+    request<{ reservationId: string; expiresAt: string }>('/orders/reserve', {
+      method: 'POST',
+      body: JSON.stringify({ items })
+    }),
+
+  releaseReservation: (reservationId: string) =>
+    request<{ success: boolean; message: string }>('/orders/release-reservation', {
+      method: 'POST',
+      body: JSON.stringify({ reservationId })
+    }),
+
   getOrders: () => request<{ orders: Order[] }>('/orders'),
 
   getOrderById: (id: string) => request<{ order: Order }>(`/orders/${id}`),
@@ -325,10 +359,16 @@ export const api = {
     state: string;
     pincode: string;
     paymentMethod: PaymentMethod;
+    reservationId?: string;
   }) =>
     request<{ order: Order; message: string }>('/orders', {
       method: 'POST',
       body: JSON.stringify(data)
+    }),
+
+  seedStarterCatalog: () =>
+    request<{ success: boolean; message: string; categoriesCount: number; brandsCount: number; productsCount: number }>('/admin/seed-starter', {
+      method: 'POST'
     }),
 
   updateOrderStatus: (id: string, status: OrderStatus) =>
